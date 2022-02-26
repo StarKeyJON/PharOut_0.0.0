@@ -1,3 +1,4 @@
+//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
 /*~~~>
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
@@ -67,9 +68,6 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 interface RoleProvider {
   function hasTheRole(bytes32 role, address _address) external returns(bool);
   function fetchAddress(bytes32 _var) external returns(address);
-}
-interface MarketMint {
-  function fetch1155NFTContractsCreated() external returns(uint);
 }
 interface Collections {
   function canOfferToken(address token) external returns(bool);
@@ -330,7 +328,6 @@ contract RewardsControl is ReentrancyGuard, Pausable {
   function setClaimClock() public nonReentrant {
     address mintAdd = RoleProvider(roleAdd).fetchAddress(MINT);
     uint users = fetchUserAmnt();
-    uint nfts = MarketMint(mintAdd).fetch1155NFTContractsCreated();
     ClaimClock memory clock = idToClock[8];
     require(clock.alpha < (block.timestamp - 2 days));
     uint alpha = block.timestamp;
