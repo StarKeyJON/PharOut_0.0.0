@@ -489,11 +489,12 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     // split fee in 3 parts, 2/3 to users, 1/3 to dao
     uint partySplit = _split.div(3);
     // userSplit is 2/3 of fee
-    uint userSplit = partySplit.mul(2);
+    uint userSplit = _split.sub(partySplit);
     // split dao in 4 parts, 
     // 3/4 to dao, 1/4 to devs
     uint devSplit = partySplit.div(4);
-    uint daoSplit = devSplit.mul(3);
+    uint daoSplit = partySplit.sub(devSplit);
+
     userEth = userEth.add(userSplit);
     daoEth = daoEth.add(daoSplit);
     devEth = devEth.add(devSplit);
@@ -520,7 +521,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     uint userSplit = amount.sub(partySplit);
     // split dao in 4 parts, 
     // 3/4 to dao, 
-    uint devSplit = partySplit.div(3);
+    uint devSplit = partySplit.div(4);
     // 1/4 to devs
     uint daoSplit = partySplit.sub(devSplit);
     uint tokenId = addressToTokenId[tokenAddress];
