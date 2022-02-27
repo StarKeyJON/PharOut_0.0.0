@@ -68,7 +68,7 @@ interface NFT {
   function revokeRole(bytes32 role, address account) external;
 }
 interface Collections {
-  function restrictMarketplaceContract(bool[] calldata restricted, string[] calldata name,address[] calldata nftContract) external;
+  function editMarketplaceContract( bool[] memory restricted, string[] memory name, address[] memory nftContract) external;
 }
 interface MarketMint {
   function setDeployAmnt(uint _deplyAmnt) external;
@@ -216,9 +216,13 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
     return true;
   }
 
-  function editMarketCollection(bool[] calldata restricted, string[] calldata name, address[] calldata nftContract) hasAdmin public returns(bool){
+  ///@notice
+  /*~~~>
+    For controlling the Collection contract
+  <~~~*/
+  function editMarketplaceContract(bool[] calldata restricted, string[] calldata name, address[] calldata nftContract) hasAdmin public returns(bool){
     address collectionsAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
-    Collections(collectionsAdd).restrictMarketplaceContract(restricted, name, nftContract);
+    Collections(collectionsAdd).editMarketCollection(isNotTradable, name, nftContract);
     return true;
   }
 
