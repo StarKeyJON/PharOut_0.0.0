@@ -110,10 +110,9 @@ contract MarketCollections {
     //*~~~> OnlyOwner function to edit a new marketplace item
   /// @dev 
     /*~~~>
-      isNotTradable: (true) if collection cannot trade;
+      restricted: (true) if collection cannot trade;
       name: Name of the collection;
       nftContract: collection contract address;
-      collectionId: internal Id of the collection
       <~~~*/
   /// @return Bool
   function restrictMarketplaceContract(
