@@ -398,7 +398,7 @@ contract MarketTrades is ReentrancyGuard, Pausable {
     tradeId: trade item id for this internal storage;
   <~~~*/
   ///@return Bool
-  function refundTrade(uint itemId, uint tradeId) public nonReentrant hasContractAdmin whenPaused returns(bool){
+  function refundTrade(uint itemId, uint tradeId) public hasContractAdmin returns(bool){
     Trade memory trade = idToNftTrade[tradeId];
     if ( trade.is1155 ){
       IERC1155(trade.nftCont).safeTransferFrom(address(this), trade.trader, trade.tokenId, trade.amount1155, "");
@@ -421,6 +421,34 @@ contract MarketTrades is ReentrancyGuard, Pausable {
   }
 
   ///@notice
+  //*~~~>Internal function to refund trade if the item sells
+  ///@dev
+  /*~~~> The contract will throw an access control error if not done internally
+    itemId: Market item id internal storage;
+    tradeId: trade item id for this internal storage;
+  <~~~*/
+  function _refundTradeFromSale(uint itemId, uint tradeId) internal {
+    Trade memory trade = idToNftTrade[tradeId];
+    if ( trade.is1155 ){
+      IERC1155(trade.nftCont).safeTransferFrom(address(this), trade.trader, trade.tokenId, trade.amount1155, "");
+    } else {
+      transferERC721(trade.nftCont, trade.trader, trade.tokenId);
+    }
+    idToNftTrade[tradeId] = Trade(false, 0, tradeId, 0, 0, address(0x0), payable(0x0), address(0x0));
+    openStorage.push(tradeId);
+    emit TradeUpdated(
+       trade.is1155,
+       false,
+       itemId, 
+       tradeId, 
+       trade.tokenId,
+       trade.nftCont, 
+       trade.trader,
+       trade.seller
+      );
+  }
+
+  ///@notice
   /*~~~>
     Public function to accept trade
   <~~~*/
@@ -438,7 +466,6 @@ contract MarketTrades is ReentrancyGuard, Pausable {
     address marketAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
     address bidsAdd = RoleProvider(roleAdd).fetchAddress(BIDS);
     address offersAdd = RoleProvider(roleAdd).fetchAddress(OFFERS);
-
     for(uint i; i<itemId.length;i++) {
       Trade memory trade = idToNftTrade[tradeId[i]];
       require(msg.sender == trade.seller,"Not Owner");
@@ -472,6 +499,10 @@ contract MarketTrades is ReentrancyGuard, Pausable {
            payable(0x0),
            address(0x0)
        );
+      Trade[] memory trades = fetchTradesById(itemId[i]);
+      for(uint j; j<trades.length;j++){
+        _refundTradeFromSale(trades[i].itemId, trades[i].tradeId);
+      }
        NFTMkt(marketAdd).transferNftForSale(trade.trader, itemId[i]);
        emit TradeAccepted(
            trade.is1155,
