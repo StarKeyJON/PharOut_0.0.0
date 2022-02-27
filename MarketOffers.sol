@@ -69,8 +69,9 @@ Interface declarations for upgradable contracts
 interface NFTMkt {
   function transferNftForSale(address receiver, uint itemId) external;
 }
-interface Rewards {
+interface RewardsController {
   function depositERC20Rewards(uint amount, address tokenAdd) external;
+  function getFee() external returns(uint);
 }
 interface IERC20 {
   function balanceOf(address account) external view returns (uint256);
@@ -82,7 +83,6 @@ interface IERC20 {
 interface RoleProvider {
   function hasTheRole(bytes32 role, address _address) external returns(bool);
   function fetchAddress(bytes32 _var) external returns(address);
-  function getFee() external returns(uint);
 }
 interface Bids {
   function fetchBidId(uint marketId) external returns(uint);
@@ -240,7 +240,8 @@ contract MarketOffers is ReentrancyGuard, Pausable {
     <~~~*/
   /// @return platform fee
   function calcFee(uint256 _value) public returns (uint256)  {
-      uint fee = RoleProvider(roleAdd).getFee();
+      address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
+      uint fee = RewardsController(rewardsAdd).getFee();
       uint256 percent = (_value.mul(fee)).div(10000);
       return percent;
     }
@@ -382,11 +383,12 @@ contract MarketOffers is ReentrancyGuard, Pausable {
       IERC20 tokenContract = IERC20(offer.tokenCont);
       if(balance<1){
         /// Calculate fee and send to rewards contract
-        uint256 salefee = calcFee(offer.amount);
-        uint256 userAmnt = offer.amount.sub(salefee);
-        /// send (salefee) to rewards contract
-        Rewards(rewardsAdd).depositERC20Rewards(salefee, offer.tokenCont);
-         /// send (offerAmount - salefee) to user  
+        uint256 saleFee = calcFee(offer.amount);
+        uint256 userAmnt = offer.amount.sub(saleFee);
+        /// send (saleFee) to rewards contract
+        RewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
+        (tokenContract).transfer(rewardsAdd, saleFee);
+         /// send (offerAmount - saleFee) to user  
         (tokenContract).transfer(payable(msg.sender), userAmnt);
       } else {
         (tokenContract).transfer(payable(msg.sender), offer.amount);
@@ -433,10 +435,10 @@ contract MarketOffers is ReentrancyGuard, Pausable {
       IERC20 tokenContract = IERC20(offer.tokenCont);
       if(balance<1){
         /// Calculate fee and send to rewards contract
-        uint256 fee = calcFee(offer.amount);
-        uint256 userAmnt = offer.amount.sub(fee);
-        Rewards(rewardsAdd).depositERC20Rewards(fee, offer.tokenCont);
-        (tokenContract).transfer(rewardsAdd, fee);
+        uint256 saleFee = calcFee(offer.amount);
+        uint256 userAmnt = offer.amount.sub(saleFee);
+        Rewards(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
+        (tokenContract).transfer(rewardsAdd, saleFee);
         (tokenContract).transfer(payable(offer.seller), userAmnt);
       } else {
         (tokenContract).transfer(payable(offer.seller), offer.amount);
