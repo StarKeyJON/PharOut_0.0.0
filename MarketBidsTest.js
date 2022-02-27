@@ -114,25 +114,14 @@ describe("MarketPlace Bids Contract Unit Test", function() {
     await marketCollections.setTokenList([true], [tokenAddress])
     await token.approve(marketMintAddress, 1000)
     await marketMint.redeemForNft(1, 200, "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
-    .then(async(res)=>{
-        console.log(res)
-      })
+
       await marketMint.redeemForNft(1, 200, "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
-      .then(async(res)=>{
-          console.log(res)
-        })
+
         await marketMint.redeemForNft(1, 200, "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
-        .then(async(res)=>{
-            console.log(res)
-          })
+
           await marketMint.redeemForNft(1, 200, "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
-          .then(async(res)=>{
-              console.log(res)
-            })
+
             await marketMint.redeemForNft(1, 200, "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
-            .then(async(res)=>{
-                console.log(res)
-              })
     // Verifying the item struct and data is saved correctly
     await marketMint.fetchNFTsCreated().then(async(res)=>{
       expect(await res[0].itemId.toNumber() === 1);
