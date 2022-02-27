@@ -69,6 +69,9 @@ interface RoleProvider {
   function hasTheRole(bytes32 role, address _address) external returns(bool);
   function fetchAddress(bytes32 _var) external returns(address);
 }
+interface MarketMint {
+  function fetchNFTsCreatedCount() external returns(uint);
+}
 interface Collections {
   function canOfferToken(address token) external returns(bool);
 }
@@ -159,7 +162,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
   struct DaoRewardToken {
     uint tokenId;
     uint tokenAmount;
-    address contractAddress;
+    address tokenAddress;
   }
   struct ClaimClock {
     uint alpha; // initial claim cutoff
@@ -328,6 +331,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
   function setClaimClock() public nonReentrant {
     address mintAdd = RoleProvider(roleAdd).fetchAddress(MINT);
     uint users = fetchUserAmnt();
+    uint nfts = MarketMint(mintAdd).fetchNFTsCreatedCount();
     ClaimClock memory clock = idToClock[8];
     require(clock.alpha < (block.timestamp - 2 days));
     uint alpha = block.timestamp;
@@ -577,9 +581,9 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     for (uint i; i < count; i++) {
       DaoRewardToken memory token = idToDaoToken[i+1];
       if (token.tokenAmount > 0) {
-        IERC20(token.contractAddress).transfer(daoAdd, token.tokenAmount);
+        IERC20(token.tokenAddress).transfer(daoAdd, token.tokenAmount);
          /// update new amount inline
-        idToDaoToken[token.tokenId] = DaoRewardToken(token.tokenId, 0, token.contractAddress);
+        idToDaoToken[token.tokenId] = DaoRewardToken(token.tokenId, 0, token.tokenAddress);
       }
     }
   }
