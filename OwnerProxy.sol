@@ -109,6 +109,7 @@ interface RoleProvider {
 interface Rewards {
   function setRoleAdd(address _role) external;
   function setAccountRcv(address _recvr) external;
+  function setFee(uint _fee) external;
 }
 
 contract OwnerProxy is ReentrancyGuard, Pausable {
@@ -154,9 +155,17 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
     roleAdd = _role;
   }
 
-  ///@notice
+  /// @notice
   /*~~~>
-   <~~~*/
+    For setting the platform fees on RewardsController.sol
+    Base fee set at 2% (i.e. value * 200 / 10,000) 
+    Future fees can be set by the controlling DAO 
+  <~~~*/
+  function setFee(uint _fee) public hasAdmin returns (bool) {
+    address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
+    RewardsController(rewardsAdd).setFee(_fee);
+    return true;
+  }
 
   ///@notice
   /*~~~>
