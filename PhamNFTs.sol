@@ -1,4 +1,3 @@
-
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -28,8 +27,8 @@ contract PhamNFTs is ERC721, AccessControl {
     function safeMint(address to) public payable onlyRole(MINTER_ROLE)  {
       tokenId = _tokenIdCounter.current();
       require(supply >= tokenId, "Not enough left");
-      _tokenIdCounter.increment();
       _safeMint(to, tokenId);
+      _tokenIdCounter.increment();
     }
     function setBaseUri(string memory _baseUri) public onlyRole(USER_OWNER_ROLE) {
         baseUri = _baseUri;
