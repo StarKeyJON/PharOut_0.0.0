@@ -32,8 +32,8 @@ describe("MarketPlace Collections Contract Unit Test", function() {
     await roleProvider.setCollectionsAdd(marketCollectionsAddress);
 
     // try at marketCollections API level
-    await marketCollections.restrictMarketplaceContract([true], ["WTF dude"], ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]);
+    await marketCollections.editMarketplaceContract([true], ["WTF dude"], ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]);
     expect(await marketCollections.isRestricted("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")).to.equal(true);
-    await marketCollections.restrictMarketplaceContract([false], ["WTF dude"], ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]);
+    await marketCollections.editMarketplaceContract([false], ["WTF dude"], ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]);
     expect(await marketCollections.isRestricted("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")).to.equal(false);
 })})
