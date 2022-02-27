@@ -17,8 +17,6 @@ contract MarketRoleProvider is AccessControl {
   address public ownerProxyAdd;
   address public PHUNKYAdd;
   address public devSig;
-  //*~~~> Platform fee
-  uint public fee;
 
   mapping (bytes32 => address) marketBytes;
 
@@ -57,22 +55,18 @@ contract MarketRoleProvider is AccessControl {
   constructor(address _controller) {
       _setupRole(DEFAULT_ADMIN_ROLE, _controller);
       _setupRole(PROXY_ROLE, _controller);
-      fee = 200;
   }
 
   modifier hasAdmin(){
     require(hasRole(PROXY_ROLE, msg.sender), Mess);
     _;
   }
-  
-  function setFee(uint _fee) public hasAdmin returns (bool) {
-    fee = _fee;
-    return true;
-  }
-  function getFee() public view returns(uint){
-    return fee;
-  }
 
+  ///@notice For setting new roles by giving 
+  /*
+   bytes32 key: bytes of the role desired
+   address _sig: address of the contract to be assigned the role
+   */
   function setAddressGivenBytes(bytes32 key, address _sig) public hasAdmin returns(bool) {
     marketBytes[key] = _sig;
     return true;
@@ -139,6 +133,7 @@ contract MarketRoleProvider is AccessControl {
   function setOwnerProxyAdd(address _proxyAdd) public hasAdmin returns(bool){
     ownerProxyAdd = _proxyAdd;
     marketBytes[PROXY]=_proxyAdd;
+    _setupRole(CONTRACT_ROLE, _proxyAdd);
     return true;
   }
   function setPhunkyAdd(address _phunky) public hasAdmin returns(bool) {
