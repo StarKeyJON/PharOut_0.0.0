@@ -65,7 +65,6 @@ Interface declarations for upgradable contracts accessibility
 <~~~*/
 interface Marketplace {
   function setRoleAdd(address _role) external;
-  function setFee(uint _fee) external;
 }
 interface NFT {
   function grantRole(bytes32 role, address account) external;
@@ -73,7 +72,6 @@ interface NFT {
 }
 interface Offers {
   function setRoleAdd(address _role) external;
-  function setFee(uint _fee) external;
 }
 interface Collections {
   function setControlAdd(address _contAdd) external;
@@ -83,7 +81,6 @@ interface Collections {
 }
 interface Bids {
   function setRoleAdd(address _role) external;
-  function setFee(uint _fee) external;
 }
 interface MarketMint {
   function setDeployAmnt(uint _deplyAmnt) external;
@@ -157,19 +154,9 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
     roleAdd = _role;
   }
 
-  /// @notice
+  ///@notice
   /*~~~>
-    For setting fees on Bids, Offers, MarketMint and Marketplace contracts
-  <~~~*/
-  function setFees(uint _fee) hasAdmin public returns(bool){
-    address marketPlaceAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
-    address offersAdd = RoleProvider(roleAdd).fetchAddress(OFFERS);
-    address bidsAdd = RoleProvider(roleAdd).fetchAddress(BIDS);
-    Offers(offersAdd).setFee(_fee);
-    Bids(bidsAdd).setFee(_fee);
-    Marketplace(marketPlaceAdd).setFee(_fee);
-    return true;
-  }
+   <~~~*/
 
   ///@notice
   /*~~~>
