@@ -65,7 +65,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 Interface declarations for upgradable contracts
 <~~~*/
 interface MarketNFT {
-  function safeMint(address to, uint count) external;
+  function safeMint(address to) external;
 }
 interface PhamNFT {
   function balanceOf(address owner) external returns(uint);
@@ -190,7 +190,7 @@ contract Mint is ReentrancyGuard, Pausable {
     address to: address to mint the NFT to;
   <~~~*/
   /// @return Bool
-  function redeemForNft(uint id, uint amount, uint count, address to) public whenNotPaused returns(bool){
+  function redeemForNft(uint id, uint amount, address to) public whenNotPaused returns(bool){
 
     address rewardsAddress =  RoleProvider(roleAdd).fetchAddress(REWARDS);
     address nftAddress = RoleProvider(roleAdd).fetchAddress(NFTADD);
@@ -203,7 +203,7 @@ contract Mint is ReentrancyGuard, Pausable {
     require(allowance >= amount, "Check the token allowance");
     tokenContract.transferFrom(msg.sender, (address(this)), amount);
     
-    MarketNFT(nftAddress).safeMint(to, count);
+    MarketNFT(nftAddress).safeMint(to);
     _nftsCreated.increment();
     uint256 nftId = _nftsCreated.current();
     _idToNft[nftId] = NFT(nftId, msg.sender);
@@ -243,6 +243,11 @@ contract Mint is ReentrancyGuard, Pausable {
       currentIndex++;
     }
     return nfts;
+  }
+
+  function fetchNFTsCreatedCount() public view returns (uint) {
+    uint itemCount = _nftsCreated.current();
+    return itemCount;
   }
 
   function fetchNFTsCreatedByAddress(address creator) public view returns (NFT[] memory) {
