@@ -93,6 +93,9 @@ contract RewardsControl is ReentrancyGuard, Pausable {
   //*~~~> amount of ETH to split between DAO;
   uint public daoEth;
 
+  //*~~~> Platform fee
+  uint public fee;
+
   //*~~~> upgradable proxy contract addresses
   bytes32 public constant DAO = keccak256("DAO");
 
@@ -129,6 +132,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     _tokens.increment();
     uint newTokenId = _tokens.current();
     addressToTokenId[_phunky] = newTokenId;
+    fee = 200;
   }
 
   //*~~~> Declaring object structures for Split Rewards & Tokens <~~~*/
@@ -170,7 +174,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     uint omega; // final claim cutoff
     uint howManyUsers; // total user count set with each distribution call
   }
-
+  
   /*~~~>
     Roles for designated accessibility
   <~~~*/
@@ -204,6 +208,17 @@ contract RewardsControl is ReentrancyGuard, Pausable {
   event DevClaimed(address indexed devAddress);
   event SetTime(uint indexed alpha, uint delta, uint omega, uint currentUserCount);
   event Received(address, uint);
+
+  /// @notice
+  /*~~~>
+    For setting fees for the Bids, Offers, MarketMint and Marketplace contracts
+    Base fee set at 2% (i.e. value * 200 / 10,000) 
+    Future fees can be set by the controlling DAO 
+  <~~~*/
+  function setFee(uint _fee) public hasAdmin returns (bool) {
+    fee = _fee;
+    return true;
+  }
 
   /// @notice
   /*~~~>
@@ -605,6 +620,11 @@ contract RewardsControl is ReentrancyGuard, Pausable {
   function _remove() internal {
       openStorage.pop();
     }
+
+  //*~~~> Fee for contract use
+    function getFee() public view returns(uint){
+    return fee;
+  }  
 
   //*~~~> Read functions for fetching amounts and data
   function fetchUsers() public view returns (User[] memory user){
