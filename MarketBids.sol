@@ -267,43 +267,46 @@ contract MarketBids is ReentrancyGuard, Pausable {
     uint[] memory itemId,
     uint[] memory bidValue,
     address[] memory seller
-  ) public payable whenNotPaused returns(bool){
-    for (uint i;i<tokenId.length;i++){
-      require (bidValue[i] > 1, "Must be greater than 1 gwei.");
-    /*~~~> 
-      Check for the case where there is a bid.
-        If the bid entered is lesser than the existing bid, revert.
-        If the existing bid is lesser than the bid entered, 
-          transfer the existing biddder the existing bidValue of the bid. 
-    <~~~*/
-    uint id = mktIdToBidId[itemId[i]];
-    if (id > 0) {
-      Bid memory existing = idToNftBid[id];
-      if (bidValue[i] <= existing.bidValue) revert();
-      if (existing.bidValue < bidValue[i]) {
-        //*~~~> Refund the failing bid
-        payable(existing.bidder).transfer(existing.bidValue);
+  )public payable whenNotPaused returns(bool){
+    uint total;
+    for (uint i;i < tokenId.length;i++){
+      total = total.add(bidValue[i]);
+      require(bidValue[i] > 1e12, "Must be greater than 1e12 gwei.");
+      /*~~~> 
+        Check for the case where there is a bid.
+          If the bid entered is lesser than the existing bid, revert.
+          If the existing bid is lesser than the bid entered, 
+            transfer the existing biddder the existing bidValue of the bid. 
+      <~~~*/
+      uint id = mktIdToBidId[itemId[i]];
+      if (id > 0) {
+        Bid memory existing = idToNftBid[id];
+        if (bidValue[i] <= existing.bidValue) revert();
+        if (existing.bidValue < bidValue[i]) {
+          //*~~~> Refund the failing bid
+          payable(existing.bidder).transfer(existing.bidValue);
+        }
       }
-    }
-    uint bidId;
-    uint len = openStorage.length;
-    if (len>=1){
-      bidId = openStorage[len-1];
-      _remove(0);
-    } else {
-      _bidIds.increment();
-      bidId = _bidIds.current();
-    }
-    idToNftBid[bidId] = Bid(itemId[i], tokenId[i], bidId, bidValue[i], block.timestamp, payable(msg.sender), payable(seller[i]));
+      uint bidId;
+      uint len = openStorage.length;
+      if (len>=1){
+        bidId = openStorage[len-1];
+        _remove(0);
+      } else {
+        _bidIds.increment();
+        bidId = _bidIds.current();
+      }
+      idToNftBid[bidId] = Bid(itemId[i], tokenId[i], bidId, bidValue[i], block.timestamp, payable(msg.sender), payable(seller[i]));
 
-    emit BidEntered(
-      tokenId[i],
-      itemId[i],
-      bidId,
-      bidValue[i],
-      msg.sender, 
-      seller[i]);
+      emit BidEntered(
+        tokenId[i],
+        itemId[i],
+        bidId,
+        bidValue[i],
+        msg.sender, 
+        seller[i]);
     }
+    require(total == msg.value);
     return true;
   }
 
@@ -324,10 +327,12 @@ contract MarketBids is ReentrancyGuard, Pausable {
     uint[] memory tokenId, 
     uint[] memory amount, 
     address[] memory bidAddress) public payable whenNotPaused nonReentrant returns(bool){
-    
+
     address collectionAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
     
+    uint total;
     for (uint i;i<bidAddress.length;i++){
+      total = total.add(value[i]);
       require(value[i] > 1e12, "Must be greater than 1e12 gwei.");
       require(Collections(collectionAdd).fetchCollection(bidAddress[i]) == false);
       uint bidId;
@@ -351,6 +356,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
         msg.sender
       );
     }
+    require(msg.value == total);
     return true;
   }
 
