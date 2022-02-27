@@ -106,6 +106,7 @@ describe("MarketPlace Bids Contract Unit Test", function() {
     const balance = await ethers.provider.getBalance(address);
     const eth = ethers.utils.formatEther(balance);
     console.log(address, eth);
+    await marketCollections.editMarketplaceContract([false],["PHAM"],[phamNftContractAddress])
     
     await marketMint.setNewRedemption(200, tokenAddress);
     await marketMint.fetchRedemptionTokens().then(async(ack) =>{
@@ -122,6 +123,7 @@ describe("MarketPlace Bids Contract Unit Test", function() {
           await marketMint.redeemForNft(1, 200, "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
 
             await marketMint.redeemForNft(1, 200, "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+
     // Verifying the item struct and data is saved correctly
     await marketMint.fetchNFTsCreated().then(async(res)=>{
       expect(await res[0].itemId.toNumber() === 1);
