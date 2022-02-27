@@ -89,7 +89,7 @@ interface Trades {
   function refundTrade(uint itemId, uint tradeId) external;
 }
 interface Collections {
-  function isRestricted(address nftContract) external view returns (bool isNotTradable);
+  function isRestricted(address nftContract) external returns(bool);
 }
 
 contract MarketBids is ReentrancyGuard, Pausable {
