@@ -93,7 +93,7 @@ interface Trades {
   function refundTrade(uint itemId, uint tradeId) external;
 }
 interface Collections {
-  function fetchCollection(address nftContract) external returns(bool);
+  function isRestricted(address nftContract) external returns(bool);
   function canOfferToken(address token) external returns(bool);
 }
 
@@ -324,7 +324,7 @@ contract MarketOffers is ReentrancyGuard, Pausable {
 
       uint256 allowance = IERC20(tokenCont[i]).allowance(msg.sender, address(this));
       require(allowance >= amount[i], "Check the token allowance");
-      require(Collections(collsAdd).fetchCollection(collection[i]) == false);
+      require(Collections(collsAdd).isRestricted(collection[i]) == false);
       IERC20(tokenCont[i]).transferFrom(msg.sender, (address(this)), amount[i]);
 
       uint offerId;

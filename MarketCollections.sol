@@ -3,7 +3,6 @@
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
         "When the power of love overcomes the love of power the world will know peace." - Jimi Hendrix <3
-
         On the point of halting the trading of collections,
           We the People of web3 must moderate ourselves. 
           With any power comes great responsibility,
@@ -13,7 +12,6 @@
            and refuse to allow the trading or promotion of any material that is knowingly harmful or explicit.
            Knowing this power can be controlled as a weapon against other projects, 
             let us only refuse collections that are explicitly tied to CP or knowingly harmful activities.
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((%%%%%
@@ -62,7 +60,6 @@
 %%%%%((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((@@@@@///////////////@@@@@(((((((((((((((((((((((((%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
  <~~~*/
 pragma solidity  >=0.8.0 <0.9.0;
 
@@ -72,13 +69,6 @@ interface RoleProvider {
   function hasTheRole(bytes32 role, address _address) external returns(bool);
 }
 contract MarketCollections {
-  using Counters for Counters.Counter;
-  
-  //*~~~> counter increments NFT collection addresses registered to this market
-  Counters.Counter private _collectionsAdded;
-
-  //*~~~> counter increments NFT collection addresses unregistered to this market
-  Counters.Counter private _collectionsRemoved;
 
   //*~~~> Roles for designated accessibility
   bytes32 public constant PROXY_ROLE = keccak256("PROXY_ROLE"); 
@@ -98,35 +88,15 @@ contract MarketCollections {
     _;
   }
 
-  //*~~~> Declaring object structure for marketplace collections and state variables
-  struct MarketCollection {
-    bool isNotTradable;
-    uint collectionId;
-    string collectionName;
-    address collectionContract;
-  }
-
-  struct TokenList{
-    bool canOffer;
-    address tokenAdd;
-  }
 
   //*~~~> Memory array of all listed Market Collections
-  mapping(uint256 => MarketCollection) private idToCollection;
-  mapping(address => MarketCollection) private addressToCollection;
-  mapping(address => TokenList) private addressToToken;
-
-  //*~~~> Declaring event object structure for new collection added
-  event CollectionAdded(
-    uint indexed collectionId,
-    string collectionName,
-    address indexed collectionContract
-    );
+  mapping(address => bool) private addressToRestricted;
+  mapping(address => string) private addressToName;
+  mapping(address => bool) private addressToOfferable;
 
   //*~~~> Declaring event object structure for updated collection
   event CollectionUpdated(
     bool isNotTradable,
-    uint indexed collectionId,
     string collectionName,
     address indexed collectionContract
   );
@@ -136,27 +106,6 @@ contract MarketCollections {
     return true;
   }
 
-  ///@notice
-    //*~~~> Admin only function to create a new marketplace item to be halted for trading
-  ///@dev
-  /*~~~>
-    name: name of Market collection to be halted;
-    nftContract: contract address of collection to be halted;
-  <~~~*/
-  ///@return Bool
-  function restrictMarketCollection(
-    string[] calldata name,
-    address[] calldata nftContract
-    ) public hasAdmin returns (bool) {
-    for (uint i; i<nftContract.length; i++) {
-      _collectionsAdded.increment();
-      uint256 collectionId = _collectionsAdded.current();
-      idToCollection[collectionId] = MarketCollection(true, collectionId, name[i], nftContract[i]);
-      emit CollectionAdded(collectionId, name[i], nftContract[i]);
-    }
-    return true;
-  }
-  
   /// @notice
     //*~~~> OnlyOwner function to edit a new marketplace item
   /// @dev 
@@ -167,15 +116,15 @@ contract MarketCollections {
       collectionId: internal Id of the collection
       <~~~*/
   /// @return Bool
-  function editMarketCollection(
-    bool[] memory isNotTradable,
+  function restrictMarketplaceContract(
+    bool[] memory restricted,
     string[] memory name,
-    address[] memory nftContract,
-    uint[] memory collectionId
+    address[] memory nftContract
     ) public hasAdmin returns (bool) {
     for (uint i; i<nftContract.length; i++) {
-      idToCollection[collectionId[i]] = MarketCollection( isNotTradable[i], collectionId[i], name[i], nftContract[i]);
-      emit CollectionAdded(collectionId[i], name[i], nftContract[i]);
+      address contract1 = nftContract[i];
+      addressToRestricted[contract1] = restricted[i];
+      emit CollectionUpdated(restricted[i], name[i], contract1);
     }
     return true;
   }
@@ -183,50 +132,24 @@ contract MarketCollections {
   //*~~~> sets approved tokens for offers
   function setTokenList(bool[] calldata _canOffer, address[] calldata _token) public hasDevAdmin returns (bool) {
     for (uint i; i < _token.length; i++){
-      addressToToken[_token[i]] = TokenList(_canOffer[i], _token[i]);
+      addressToOfferable[_token[i]] = _canOffer[i];
     }
     return true;
   }
 
   function canOfferToken(address token) public view returns(bool){
-    bool canOffer = addressToToken[token].canOffer;
-    return canOffer;
+    return addressToOfferable[token];
   }
 
   /// @notice
     //*~~~> Public read functions for internal state
-  function fetchCollectionItem(uint collectionId) public view returns (MarketCollection memory) {
-    MarketCollection memory collection = idToCollection[collectionId];
-    return collection;
+  function fetchName(address nftContract) public view returns (string memory) {
+    return addressToName[nftContract];
   }
 
   // checks if the collection is restricted from trading, returns false if not
-  function fetchCollection(address nftContract) public view returns (bool) {
-    uint collectionCount = _collectionsAdded.current();
-    if(collectionCount == 0) return false;
-    MarketCollection memory collection = addressToCollection[nftContract];
-    if (collection.isNotTradable){
-      return true;
-    } else {
-      return false;
-      }
-  }
-
-  function fetchCollections() public view returns (MarketCollection[] memory) {
-    uint collectionCount = _collectionsAdded.current();
-    uint listedCollectionCount = _collectionsAdded.current() - _collectionsRemoved.current();
-    MarketCollection[] memory collections = new MarketCollection[](listedCollectionCount);
-    for (uint i; i < collectionCount; i++) {
-      if (idToCollection[i + 1].isNotTradable == true) {
-        MarketCollection storage currentItem = idToCollection[i + 1];
-        collections[i] = currentItem;
-      }
-    }
-    return collections;
-  }
-
-  function fecthCollectionCount() public view returns(uint count){
-    return _collectionsAdded.current();
+  function isRestricted(address nftContract) public view returns (bool) {
+    return addressToRestricted[nftContract];
   }
 
   ///@notice
@@ -237,4 +160,3 @@ contract MarketCollections {
       emit FundsForwarded(msg.value, msg.sender, roleAdd);
   }
 }
-

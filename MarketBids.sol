@@ -89,7 +89,7 @@ interface Trades {
   function refundTrade(uint itemId, uint tradeId) external;
 }
 interface Collections {
-  function fetchCollection(address nftContract) external returns(bool);
+  function isRestricted(address nftContract) external returns(bool);
 }
 
 contract MarketBids is ReentrancyGuard, Pausable {
@@ -329,7 +329,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
     
     for (uint i;i<bidAddress.length;i++){
       require(value[i] > 1e12, "Must be greater than 1e12 gwei.");
-      require(Collections(collectionAdd).fetchCollection(bidAddress[i]) == false);
+      require(Collections(collectionAdd).isRestricted(bidAddress[i]) == false);
       uint bidId;
       uint len = blindOpenStorage.length;
       if (len>=1){

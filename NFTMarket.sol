@@ -71,7 +71,7 @@ interface IERC721 {
   function setApprovalForAll(address operator, bool approved) external;
 }
 interface Collections {
-  function fetchCollection(address nftContract) external view returns (bool isNotTradable);
+  function isRestricted(address nftContract) external view returns (bool isNotTradable);
 }
 interface Offers {
   function fetchOfferId(uint marketId) external returns(uint);
@@ -249,7 +249,7 @@ contract NFTMarket is ReentrancyGuard, Pausable {
       }
     uint tokenLen = tokenId.length;
     for (uint i;i<tokenLen;i++){
-        require(Collections(collsAdd).fetchCollection(nftContract[i]) == false);
+        require(Collections(collsAdd).isRestricted(nftContract[i]) == false);
         require(price[i] >= 1e14);
         uint itemId;
         uint len = openStorage.length;

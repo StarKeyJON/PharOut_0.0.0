@@ -82,7 +82,7 @@ interface Bids {
   function refundBid(uint bidId) external;
 }
 interface Collections {
-  function fetchCollection(address nftContract) external returns(bool);
+  function isRestricted(address nftContract) external returns(bool);
 }
 
 contract MarketTrades is ReentrancyGuard, Pausable {
@@ -235,7 +235,7 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       address[] memory seller
   ) public whenNotPaused nonReentrant returns(bool){
     for (uint i;i<itemId.length;i++) {
-      require(Collections(RoleProvider(roleAdd).fetchAddress(COLLECTION)).fetchCollection(nftContract[i]) == false);
+      require(Collections(RoleProvider(roleAdd).fetchAddress(COLLECTION)).isRestricted(nftContract[i]) == false);
       uint tradeId;
       if (openStorage.length>=1) {
         tradeId = openStorage[openStorage.length-1];
@@ -309,7 +309,7 @@ contract MarketTrades is ReentrancyGuard, Pausable {
         _blindTrades.increment();
         tradeId = _blindTrades.current();
       }
-      require(Collections(collsAdd).fetchCollection(nftContract[i]) == false);
+      require(Collections(collsAdd).isRestricted(nftContract[i]) == false);
       if (is1155[i]){
         IERC1155(nftContract[i]).safeTransferFrom(msg.sender, address(this), tokenId[i], amount1155[i], "");
       } else {
