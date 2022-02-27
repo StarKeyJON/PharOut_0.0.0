@@ -1,5 +1,5 @@
 /*~~~>
-    Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
+   Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
         "When the power of love overcomes the love of power the world will know peace." - Jimi Hendrix <3
