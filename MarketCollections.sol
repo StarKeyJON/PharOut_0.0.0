@@ -115,7 +115,7 @@ contract MarketCollections {
       nftContract: collection contract address;
       <~~~*/
   /// @return Bool
-  function restrictMarketplaceContract(
+  function editMarketplaceContract(
     bool[] memory restricted,
     string[] memory name,
     address[] memory nftContract
