@@ -71,7 +71,7 @@ contract PhamToken is ERC20, ERC20Burnable, ERC20Snapshot, AccessControl, ERC20P
     constructor(address _contrAdd) ERC20("Pham Token", "PHAM") ERC20Permit("Pham Token") {
         _grantRole(DEFAULT_ADMIN_ROLE, _contrAdd);
         _grantRole(SNAPSHOT_ROLE, _contrAdd);
-        _mint(msg.sender, 21 * 10 ** 6 );
+        _mint(msg.sender, 21000000 );
     }
 
     function snapshot() public onlyRole(SNAPSHOT_ROLE) {
