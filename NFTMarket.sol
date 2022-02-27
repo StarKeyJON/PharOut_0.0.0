@@ -606,7 +606,7 @@ function transferFromERC721(address assetAddr, uint256 tokenId, address to) inte
         Trades(tradesAdd).refundTrade(itemId, tradeId);
       }
       openStorage.push(itemId);
-      idToMktItem[itemId] = MktItem(false, itemId, 0, 0, it.tokenId, it.nftContract, payable(0x0), payable(0x0));
+      idToMktItem[itemId] = MktItem(false, itemId, 0, 0, 0, address(0x0), payable(0x0), payable(0x0));
       emit ItemBought(itemId, it.tokenId, it.nftContract, it.seller, receiver);
   }
 
