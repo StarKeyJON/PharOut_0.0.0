@@ -1,5 +1,5 @@
 /*~~~>
-   Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
+    Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
         "When the power of love overcomes the love of power the world will know peace." - Jimi Hendrix <3
@@ -63,28 +63,16 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 /*~~~>
 Interface declarations for upgradable contracts accessibility
 <~~~*/
-interface Marketplace {
-  function setRoleAdd(address _role) external;
-}
 interface NFT {
   function grantRole(bytes32 role, address account) external;
   function revokeRole(bytes32 role, address account) external;
 }
-interface Offers {
-  function setRoleAdd(address _role) external;
-}
 interface Collections {
-  function setControlAdd(address _contAdd) external;
-  function setRoleAdd(address _role) external;
   function restrictMarketCollection(string[] calldata name, address[] calldata nftContract) external;
   function editMarketCollection(bool[] calldata isNotTradable, string[] calldata name,address[] calldata nftContract, uint[] calldata collectionId) external;
 }
-interface Bids {
-  function setRoleAdd(address _role) external;
-}
 interface MarketMint {
   function setDeployAmnt(uint _deplyAmnt) external;
-  function setRoleAdd(address _role) external;
   function setNewRedemption(uint amount, address _toke) external;
   function resetRedemptionToken(uint64 _redeemAmount, address _contract) external;
 }
@@ -106,9 +94,7 @@ interface RoleProvider {
   function grantRole(bytes32 role, address _address) external;
   function revokeRole(bytes32 role, address account) external;
 }
-interface Rewards {
-  function setRoleAdd(address _role) external;
-  function setAccountRcv(address _recvr) external;
+interface RewardsController {
   function setFee(uint _fee) external;
 }
 
@@ -204,7 +190,7 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
     return true;
   }
   function setRoleAdd(address _role) public hasAdmin returns(bool){
-      roleAdd = _role;
+    roleAdd = _role;
     return true;
   }
   function setDevAdd(address _devAdd) public hasDevAdmin returns(bool){
@@ -228,16 +214,6 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
   }
   function revokeProxyRole(bytes32 role, address account) hasAdmin public returns(bool){
     RoleProvider(roleAdd).revokeRole(role, account);
-    return true;
-  }
-
-  ///@notice
-  /*~~~>
-    For setting the DAO address to withdraw rewards
-  <~~~*/
-  function setRewardsAccountRcv(address _recvr) hasAdmin public returns(bool){
-    address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
-    Rewards(rewardsAdd).setAccountRcv(_recvr);
     return true;
   }
 
