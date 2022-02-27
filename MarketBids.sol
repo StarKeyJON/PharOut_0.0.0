@@ -74,11 +74,11 @@ interface IERC721 {
 }
 interface RewardsController {
   function splitRewards(uint split) external payable;
+  function getFee() external returns(uint);
 }
 interface RoleProvider {
   function hasTheRole(bytes32 role, address _address) external returns(bool);
   function fetchAddress(bytes32 _var) external returns(address);
-  function getFee() external returns(uint);
 }
 interface Offers {
   function fetchOfferId(uint marketId) external returns(uint);
@@ -246,7 +246,8 @@ contract MarketBids is ReentrancyGuard, Pausable {
     <~~~*/
   /// @return platform fee
   function calcFee(uint256 _value) public returns (uint256) {
-      uint fee = RoleProvider(roleAdd).getFee();
+      address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
+      uint fee = RewardsController(rewardsAdd).getFee();
       uint256 percent = (_value.mul(fee)).div(10000);
       return percent;
     }
@@ -383,12 +384,12 @@ contract MarketBids is ReentrancyGuard, Pausable {
         }
         if(balance<1){
           /*~~~> Calculating the platform fee <~~~*/
-          uint256 _fee = calcFee(bid.bidValue);
-          uint256 _userAmnt = bid.bidValue.sub(_fee);
-          /// send fee to rewards controller
-          RewardsController(rewardsAdd).splitRewards{value: _fee}(_fee);
-          /// send (bidValue - fee) to user
-          payable(msg.sender).transfer(_userAmnt);
+          uint256 saleFee = calcFee(bid.bidValue);
+          uint256 userAmnt = bid.bidValue.sub(saleFee);
+          /// send saleFee to rewards controller
+          RewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+          /// send (bidValue - saleFee) to user
+          payable(msg.sender).transfer(userAmnt);
         } else {
           payable(msg.sender).transfer(bid.bidValue);
         }
@@ -439,12 +440,12 @@ contract MarketBids is ReentrancyGuard, Pausable {
       require(msg.sender == bid.seller);
       if(balance<1) {
           /*~~~> Calculating the platform fee <~~~*/
-          uint256 _fee = calcFee(bid.bidValue);
-          uint256 _userAmnt = bid.bidValue.sub(_fee);
-          /// send fee to rewards controller
-          RewardsController(rewardsAdd).splitRewards{value: _fee}(_fee);
-          /// send (bidValue - fee) to user
-          payable(bid.seller).transfer(_userAmnt);
+          uint256 saleFee = calcFee(bid.bidValue);
+          uint256 userAmnt = bid.bidValue.sub(saleFee);
+          /// send saleFee to rewards controller
+          RewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+          /// send (bidValue - saleFee) to user
+          payable(bid.seller).transfer(userAmnt);
       } else {
         payable(bid.seller).transfer(bid.bidValue);
       }
