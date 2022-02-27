@@ -74,7 +74,6 @@ interface IERC721 {
 }
 interface RewardsController {
   function splitRewards(uint split) external payable;
-  function depositEthToDAO() external payable;
 }
 interface RoleProvider {
   function hasTheRole(bytes32 role, address _address) external returns(bool);
