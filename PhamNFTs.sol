@@ -26,7 +26,7 @@ contract PhamNFTs is ERC721, AccessControl {
     }
 
     function safeMint(address to) public payable onlyRole(MINTER_ROLE)  {
-      uint256 tokenId = _tokenIdCounter.current();
+      tokenId = _tokenIdCounter.current();
       require(supply >= tokenId, "Not enough left");
       _tokenIdCounter.increment();
       _safeMint(to, tokenId);
