@@ -437,7 +437,7 @@ contract MarketOffers is ReentrancyGuard, Pausable {
         /// Calculate fee and send to rewards contract
         uint256 saleFee = calcFee(offer.amount);
         uint256 userAmnt = offer.amount.sub(saleFee);
-        Rewards(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
+        RewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
         (tokenContract).transfer(rewardsAdd, saleFee);
         (tokenContract).transfer(payable(offer.seller), userAmnt);
       } else {
