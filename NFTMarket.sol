@@ -91,6 +91,7 @@ interface RewardsController {
   function splitRewards(uint split) external payable;
   function setUser(bool canTrade, address userAddress) external;
   function depositEthToDAO() external payable;
+  function getFee() external returns(uint);
 }
 interface IERC20 {
   function transfer(address to, uint value) external returns (bool);
@@ -98,7 +99,6 @@ interface IERC20 {
 interface RoleProvider {
   function hasTheRole(bytes32 role, address _address) external returns(bool);
   function fetchAddress(bytes32 _var) external returns(address);
-  function getFee() external returns(uint);
 }
 
 contract NFTMarket is ReentrancyGuard, Pausable {
@@ -148,7 +148,7 @@ contract NFTMarket is ReentrancyGuard, Pausable {
 
   /*~~~> sets deployment address as default admin role <~~~*/
   constructor(address _role) {
-      roleAdd = _role;
+    roleAdd = _role;
   }
 
   /*~~~> Declaring object structures for listed items for sale <~~~*/
@@ -213,9 +213,10 @@ contract NFTMarket is ReentrancyGuard, Pausable {
       Base fee set at 2% (i.e. value * 200 / 10,000) 
       Future fees can be set by the controlling DAO 
     <~~~*/
-  /// @return platform fee set by the controlling DAO
+  /// @return platform fee
   function calcFee(uint256 _value) public returns (uint256)  {
-      uint fee = RoleProvider(roleAdd).getFee();
+      address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
+      uint fee = RewardsController(rewardsAdd).getFee();
       uint256 percent = (_value.mul(fee)).div(10000);
       return percent;
     }
@@ -362,11 +363,11 @@ contract NFTMarket is ReentrancyGuard, Pausable {
       MktItem memory it = idToMktItem[itemId[i]];
       if(balance<1){
         /*~~~> Calculating the platform fee <~~~*/
-        uint256 _fee = calcFee(it.price);
-        uint256 userAmnt = it.price.sub(_fee);
-        // send _fee to rewards controller
-        RewardsController(rewardsAdd).splitRewards{value: _fee}(_fee);
-        // send (listed amount - _fee) to seller
+        uint256 saleFee = calcFee(it.price);
+        uint256 userAmnt = it.price.sub(saleFee);
+        // send saleFee to rewards controller
+        RewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+        // send (listed amount - saleFee) to seller
         payable(it.seller).transfer(userAmnt);
       }
       if (Bids(bidsAdd).fetchBidId(itemId[i])>0) {
@@ -511,13 +512,11 @@ function transferFromERC721(address assetAddr, uint256 tokenId, address to) inte
   ///@notice //*~~~> Read functions for internal contract state
   function fetchMktItems() public view returns (MktItem[] memory) {
     uint itemCount = itemIds.current();
-    uint currentIndex = 0;
     MktItem[] memory items = new MktItem[](itemCount);
     for (uint i = 0; i < itemCount; i++) {
       if (idToMktItem[i + 1].itemId > 0) {
         MktItem storage currentItem = idToMktItem[i + 1];
-        items[currentIndex] = currentItem;
-        currentIndex += 1;
+        items[i] = currentItem;
       }
     }
     return items;
