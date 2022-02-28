@@ -1,3 +1,4 @@
+//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
 /*~~~>
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
@@ -71,7 +72,7 @@ interface IERC721 {
   function setApprovalForAll(address operator, bool approved) external;
 }
 interface Collections {
-  function isRestricted(address nftContract) external view returns (bool isNotTradable);
+  function isRestricted(address nftContract) external returns(bool);
 }
 interface Offers {
   function fetchOfferId(uint marketId) external returns(uint);
@@ -98,6 +99,7 @@ interface IERC20 {
 }
 interface RoleProvider {
   function hasTheRole(bytes32 role, address _address) external returns(bool);
+  function hasContractRole(address _address) external returns(bool);
   function fetchAddress(bytes32 _var) external returns(address);
 }
 
@@ -118,7 +120,7 @@ contract NFTMarket is ReentrancyGuard, Pausable {
     _;
   }
   modifier hasContractAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(CONTRACT_ROLE, msg.sender), "DOES NOT HAVE CONTRACT ROLE");
+    require(RoleProvider(roleAdd).hasContractRole(msg.sender), "DOES NOT HAVE CONTRACT ROLE");
     _;
   }
   modifier hasDevAdmin(){
