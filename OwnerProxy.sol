@@ -1,3 +1,4 @@
+//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
 /*~~~>
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
@@ -90,8 +91,7 @@ interface RoleProvider {
   function setPhunkyAdd(address _phunky) external returns(bool);
   function setDevSigAddress(address _sig) external returns(bool);
   function hasTheRole(bytes32 role, address _address) external returns(bool);
-  function grantRole(bytes32 role, address _address) external;
-  function revokeRole(bytes32 role, address account) external;
+  function setAddressGivenBytes(bytes32 key, address _sig) external returns(bool);
 }
 interface RewardsController {
   function setFee(uint _fee) external;
@@ -201,18 +201,14 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
   /*~~~>
     For setting the roles in the role provider contract
   <~~~*/
-  function setProxyRoles(bytes32[] calldata role, address[] calldata account) hasAdmin public returns(bool){
-    for (uint i; i<account.length; i++){
-      RoleProvider(roleAdd).grantRole(role[i], account[i]);
+  function setProxyRoles(bytes32[] calldata key, address[] calldata _sig) hasAdmin public returns(bool){
+    for (uint i; i<_sig.length; i++){
+      RoleProvider(roleAdd).setAddressGivenBytes(key[i], _sig[i]);
     }
     return true;
   }
-  function setProxyRole(bytes32 role, address account) hasAdmin public returns(bool){
-    RoleProvider(roleAdd).grantRole(role, account);
-    return true;
-  }
-  function revokeProxyRole(bytes32 role, address account) hasAdmin public returns(bool){
-    RoleProvider(roleAdd).revokeRole(role, account);
+  function setProxyRole(bytes32 key, address _sig) hasAdmin public returns(bool){
+    RoleProvider(roleAdd).setAddressGivenBytes(key, _sig);
     return true;
   }
 
@@ -222,7 +218,7 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
   <~~~*/
   function editMarketplaceContract(bool[] calldata restricted, string[] calldata name, address[] calldata nftContract) hasAdmin public returns(bool){
     address collectionsAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
-    Collections(collectionsAdd).editMarketCollection(isNotTradable, name, nftContract);
+    Collections(collectionsAdd).editMarketplaceContract(restricted, name, nftContract);
     return true;
   }
 
