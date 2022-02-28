@@ -97,11 +97,12 @@ describe("MarketPlace Bids Contract Unit Test", function() {
     await roleProvider.setRoleAdd(roleProviderAddress);
     await roleProvider.setOwnerProxyAdd(ownerProxyAddress);
     await roleProvider.setPhunkyAdd(tokenAddress);
-    await roleProvider.setDevSigAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+    await roleProvider.setDevSigAddress(testDao.getAddress());
     await roleProvider.setNftAdd(phamNftContractAddress);
     console.log("Initialized all the contract addresses to the Owner Proxy contract and assigned Contract_Role.")
-    await roleProvider.grantRole("0x0000000000000000000000000000000000000000000000000000000000000000",ownerProxyAddress);
-    await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2","0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+    await roleProvider.grantRole("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",ownerProxyAddress);
+    await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDao.getAddress())
+    await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDev.getAddress())
     const address = await testDev.getAddress();
     const balance = await ethers.provider.getBalance(address);
     const eth = ethers.utils.formatEther(balance);
