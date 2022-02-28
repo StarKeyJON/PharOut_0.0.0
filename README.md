@@ -13,17 +13,17 @@ Place a "blind" bid, trade or ERC20 offer on any specific unlisted item or colle
   Current Rinkeby Contracts
   </h3>
 <ul>
- <li> MarketRoleProvider.sol: https://rinkeby.etherscan.io/address/0x5568371a94d3717411dcbd55ddd921e79d222f71#code </li>
-  <li> OwnerProxy.sol: https://rinkeby.etherscan.io/address/0x2cB4A2951ed52672671145F8a62214B6C27d63Da#code </li>
-  <li> NFTMarket.sol: https://rinkeby.etherscan.io/address/0xeE4668d61A574c5D63fbF7e8431F7FE5E654dC99#code </li>
-  <li> MarketMint.sol: https://rinkeby.etherscan.io/address/0xE862d9fD08171080630E3D387c9511460636247E#code </li>
-  <li> (used for testing ERC20 interaction) PhamToken:  https://rinkeby.etherscan.io/address/0x875227B4E73A75B05920e99D658d5c85a2D92875#code </li>
-  <li> PhamNFTs.sol: https://rinkeby.etherscan.io/token/0x413A577116942D012c531754fAd5c59e287D6C29#code </li>
-  <li> MarketBids.sol: https://rinkeby.etherscan.io/address/0x5165FC77a803f8488b6F944258f673dDD1Db0259#code </li>
-  <li> MarketCollections.sol: https://rinkeby.etherscan.io/address/0x82238081c13921f1E371928e96a9a357aDc72B9C#code </li>
-  <li> MarketOffers.sol: https://rinkeby.etherscan.io/address/0x576A4959d0005df87F8D6ea72Fea53A29297066A#code </li>
-  <li> MarketTrades.sol: https://rinkeby.etherscan.io/address/0x05cB531965EB757629D125Eaba2562C2e238cEDA#code </li>
-  <li> MarketRewards.sol: https://rinkeby.etherscan.io/address/0x3839E4f45A0C8298C5fCD037D056bc53dABBED3c#code </li>
+ <li> MarketRoleProvider.sol: https://rinkeby.etherscan.io/address/0x1dAfad7564B4429B6c0AFE5B5051B98411199891#code </li>
+  <li> OwnerProxy.sol: https://rinkeby.etherscan.io/address/0x7774B677fbE1E493824fe869963C44745f725a2c#code </li>
+  <li> NFTMarket.sol: https://rinkeby.etherscan.io/address/0x386660B2edB760577E8ED683AdD190E1bcc27ceb#code </li>
+  <li> MarketMint.sol: https://rinkeby.etherscan.io/address/0x97f152A9f085e3B3b16d7276B09597A828C8af3e#code </li>
+  <li> (used for testing ERC20 interaction) PhamToken:  https://rinkeby.etherscan.io/address/0xE76049F1beb1E60d2a30380683AB5dc7F7b5d92b#code </li>
+  <li> PhamNFTs.sol: https://rinkeby.etherscan.io/token/0x043687E41106c8D0B03784B10953E82B198cEE48#code </li>
+  <li> MarketBids.sol: https://rinkeby.etherscan.io/address/0x770229EC1C76369726c59b2F2778bB8240c99CAa#code </li>
+  <li> MarketCollections.sol: https://rinkeby.etherscan.io/address/0x0a4D89c3d2843a690690c1b86Dc16DBEC74e8317#code </li>
+  <li> MarketOffers.sol: https://rinkeby.etherscan.io/address/0x80105f0485e0FBae660679713AB867E3031D062e#code </li>
+  <li> MarketTrades.sol: https://rinkeby.etherscan.io/address/0x6A31278C32B09051c168698a314800a71376ca86#code </li>
+  <li> MarketRewards.sol: https://rinkeby.etherscan.io/address/0x2E6B93C6ccbD128fB9bEBab7d6319E200f008643#code </li>
   </ul>
 </br>
 # Rewards
