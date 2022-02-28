@@ -1,3 +1,4 @@
+//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
 /*~~~>
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
@@ -267,7 +268,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
     uint[] memory itemId,
     uint[] memory bidValue,
     address[] memory seller
-  )public payable whenNotPaused returns(bool){
+  ) public payable whenNotPaused returns(bool){
     uint total;
     for (uint i;i < tokenId.length;i++){
       total = total.add(bidValue[i]);
