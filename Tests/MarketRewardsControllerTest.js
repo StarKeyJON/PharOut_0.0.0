@@ -101,7 +101,8 @@ describe("MarketPlace Mint ERC721 Contract Unit Test", function() {
     console.log("Initialized all the contract addresses to the Owner Proxy contract and assigned Contract_Role.")
     /// Trying to set the bytes to address is throwing errors on checking for DEV_ROLE
     // await roleProvider.setAddressGivenBytes("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDev.address)
-    /// Switched it to grantRole(). It appears the deployer may need to remain DEFAULT_ROLE
+    /// Switched it to grantRole(). It appears the deployer may need to remain DEFAULT_ROLE -- update -- it did not
+    /// setAddressGivenBytes is not working as expected.. will create a binary switch operator
     await roleProvider.grantRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDev.address)
 
     await roleProvider.setAddressGivenBytes("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",testDao.address)
