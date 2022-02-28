@@ -67,6 +67,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 
 interface RoleProvider {
   function hasTheRole(bytes32 role, address _address) external returns(bool);
+  function hasContractRole(address _address) external returns(bool);
   function fetchAddress(bytes32 _var) external returns(address);
 }
 interface MarketMint {
@@ -121,7 +122,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
   mapping(address => uint256) private addressToTokenId; // For token Id
   mapping(uint256 => UserRewardToken) private idToUserToken;
   mapping(uint256 => DevRewardToken) private idToDevToken;
-  mapping (uint256 => DaoRewardToken) private idToDaoToken;
+  mapping(uint256 => DaoRewardToken) private idToDaoToken;
   mapping(uint256 => DevTeam) private idToDevTeam;
   mapping(address => uint256) private addressToDevTeamId;
   mapping(uint256 => ClaimClock) private idToClock;
@@ -190,7 +191,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     _;
   }
   modifier hasContractAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(CONTRACT_ROLE, msg.sender), "DOES NOT HAVE CONTRACT ROLE");
+    require(RoleProvider(roleAdd).hasContractRole(msg.sender), "DOES NOT HAVE CONTRACT ROLE");
     _;
   }
 
@@ -229,7 +230,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     devAddress: new dev;
   <~~~*/
   /// @return Bool
-  function addDev(address devAddress) public hasDevAdmin nonReentrant returns(bool) {
+  function addDev(address devAddress) public nonReentrant hasDevAdmin returns(bool) {
     uint devLen = _devs.current();
     bool added;
     for (uint i; i<devLen;i++){
@@ -245,6 +246,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
       _devs.increment();
       uint id = _devs.current();
       idToDevTeam[id] = DevTeam(block.timestamp, id, devAddress);
+      addressToDevTeamId[devAddress] = id;
     }
     emit NewDev(devAddress);
     return true;
