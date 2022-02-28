@@ -45,8 +45,8 @@ describe("MarketPlace Mint ERC721 Contract Unit Test", function() {
     await token.deployed()
     const tokenAddress = token.address;
     console.log("PHAM Token Address: " + tokenAddress)
-    const amnt = await token.balanceOf('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
-    console.log("Deployer address has a total of " + amnt.toNumber() + " PHAM Tokens.");
+    // const amnt = await token.balanceOf('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+    // console.log("Deployer address has a total of " + ethers.utils.parseUnits(amnt, "ether") + " PHAM Tokens.");
 
     const NFT = await ethers.getContractFactory("PhamNFTs");
     const phamNft = await NFT.deploy('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', marketMintAddress, "https://ipfs.io/ipfs/");
@@ -99,19 +99,18 @@ describe("MarketPlace Mint ERC721 Contract Unit Test", function() {
     await roleProvider.setDevSigAddress(testDev.address);
     await roleProvider.setNftAdd(phamNftContractAddress);
     console.log("Initialized all the contract addresses to the Owner Proxy contract and assigned Contract_Role.")
-    /// Trying to set the bytes to address is throwing errors on checking for DEV_ROLE
-    // await roleProvider.setAddressGivenBytes("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDev.address)
-    /// Switched it to grantRole(). It appears the deployer may need to remain DEFAULT_ROLE -- update -- it did not
-    /// setAddressGivenBytes is not working as expected.. will create a binary switch operator
-    await roleProvider.grantRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDev.address)
+    const address = await testDev.getAddress();
 
-    await roleProvider.setAddressGivenBytes("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",testDao.address)
-    await roleProvider.grantRole("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",testDev.address)
-    await roleProvider.fetchAddress("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2").then(res=>{console.log(res)})
-    await roleProvider.fetchAddress("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b").then(res=>{console.log(res)})
+    /// attempts to set the DEV_ROLE through updating the marketBytes[DEV_ROLE] mapping is not working
+    /// Dev multi sig will need to remain as DEFAULT_ADMIN
+    await roleProvider.grantRole("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",address)
+    console.log(address)
+    await roleProvider.grantRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",address)
 
-    console.log(testDev.address)
-     const address = await testDev.getAddress();
+
+
+    
+     
     const balance = await ethers.provider.getBalance(address);
     const eth = ethers.utils.formatEther(balance);
     console.log(address, eth);
@@ -156,36 +155,36 @@ describe("MarketPlace Mint ERC721 Contract Unit Test", function() {
     })
     console.log("User Rewards holdings")
     await rewardsController.fetchUserRewardTokens().then(async(res)=>{
-      console.log(res[0].tokenId.toNumber())
-      console.log(res[0].tokenAmount.toNumber())
-      console.log(res[0].tokenAddress)
+      console.log("tokenId: ",res[0].tokenId.toNumber())
+      console.log("tokenAmount: ",res[0].tokenAmount.toNumber())
+      console.log("tokenAddress: ", res[0].tokenAddress)
     })
     console.log("DEV Rewards holdings")
     await rewardsController.fetchDevRewardTokens().then(async(res)=>{
-      console.log(res[0].tokenId.toNumber())
-      console.log(res[0].tokenAmount.toNumber())
-      console.log(res[0].tokenAddress)
+      console.log("tokenId: ",res[0].tokenId.toNumber())
+      console.log("tokenAmount: ",res[0].tokenAmount.toNumber())
+      console.log("tokenAddress: ", res[0].tokenAddress)
     })
     console.log("DAO Rewards holdings")
     await rewardsController.fetchDaoRewardTokens().then(async(res)=>{
-      console.log(res[0].tokenId.toNumber())
-      console.log(res[0].tokenAmount.toNumber())
-      console.log(res[0].tokenAddress)
+      console.log("tokenId: ",res[0].tokenId.toNumber())
+      console.log("tokenAmount: ",res[0].tokenAmount.toNumber())
+      console.log("tokenAddress: ", res[0].tokenAddress)
     })
     await rewardsController.connect(testDao).claimDaoRewards();
     console.log("DAO Rewards holdings after claim")
     await rewardsController.fetchDaoRewardTokens().then(async(res)=>{
-      console.log(res[0].tokenId.toNumber())
-      console.log(res[0].tokenAmount.toNumber())
-      console.log(res[0].tokenAddress)
+      console.log("tokenId: ",res[0].tokenId.toNumber())
+      console.log("tokenAmount: ",res[0].tokenAmount.toNumber())
+      console.log("tokenAddress: ",res[0].tokenAddress)
     })
     await rewardsController.setClaimClock()
     console.log("Claim Clock")
 
     await rewardsController.fetchClaimTime().then(async(res)=>{
-      console.log(res.alpha.toNumber())
-      console.log(res.delta.toNumber())
-      console.log(res.omega.toNumber())
-      console.log(res.howManyUsers.toNumber())
+      console.log("Aplha time: ", res.alpha.toNumber())
+      console.log("Delta time: ",res.delta.toNumber())
+      console.log("Omega time: ",res.omega.toNumber())
+      console.log("How many users: ", res.howManyUsers.toNumber())
     })
 })})
