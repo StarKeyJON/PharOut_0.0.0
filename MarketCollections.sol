@@ -1,3 +1,4 @@
+//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
 /*~~~>
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
@@ -129,7 +130,7 @@ contract MarketCollections {
   }
 
   //*~~~> sets approved tokens for offers
-  function setTokenList(bool[] calldata _canOffer, address[] calldata _token) public hasDevAdmin returns (bool) {
+  function setTokenList(bool[] calldata _canOffer, address[] calldata _token) public hasAdmin returns (bool) {
     for (uint i; i < _token.length; i++){
       addressToOfferable[_token[i]] = _canOffer[i];
     }
