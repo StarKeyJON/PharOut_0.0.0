@@ -9,8 +9,8 @@ const { utils } = require("ethers");
 // use(solidity);
 
 
-describe("MarketPlace Offers Contract Unit Test", function() {
-  it("Should interact with the Offers, Rewards, ERC721 and Mint contracts.", async function() {
+describe("MarketPlace Trades Contract Unit Test", function() {
+  it("Should interact with the Trades, Rewards, ERC721 and Mint contracts.", async function() {
     before((done) => {
       setTimeout(done, 2000);
     });
@@ -97,12 +97,16 @@ describe("MarketPlace Offers Contract Unit Test", function() {
     await roleProvider.setRoleAdd(roleProviderAddress);
     await roleProvider.setOwnerProxyAdd(ownerProxyAddress);
     await roleProvider.setPhunkyAdd(tokenAddress);
-    await roleProvider.setDevSigAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+    await roleProvider.setDevSigAddress(testDao.getAddress());
     await roleProvider.setNftAdd(phamNftContractAddress);
     console.log("Initialized all the contract addresses to the Owner Proxy contract and assigned Contract_Role.")
-    await roleProvider.grantRole("0x0000000000000000000000000000000000000000000000000000000000000000",ownerProxyAddress);
-    await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2","0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
-    const address = await testDev.getAddress();
+
+    // await roleProvider.setAddressGivenBytes("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDev.address)
+    // await roleProvider.setAddressGivenBytes("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",testDao.address)
+    await roleProvider.grantRole("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",ownerProxyAddress);
+    await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDev.getAddress())
+    await ownerProxy.setProxyRole("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",testDao.getAddress())
+     const address = await testDev.getAddress();
     const balance = await ethers.provider.getBalance(address);
     const eth = ethers.utils.formatEther(balance);
     console.log(address, eth);
@@ -180,7 +184,11 @@ describe("MarketPlace Offers Contract Unit Test", function() {
 
     // It should approve and list newly minted NFTs
     await phamNft.setApprovalForAll(marketAddress, true);
-    await market.listMktItem([false,false,false,false,false], [0,0,0,0,0], [0,1,2,3,4], [1000000000000000,1000000000000000,1000000000000000,1000000000000000,1000000000000000], [phamNftContractAddress,phamNftContractAddress,phamNftContractAddress,phamNftContractAddress,phamNftContractAddress])
+    await market.listMktItem([false], [0], [0], [1000000000000000], [phamNftContractAddress])
+    await market.listMktItem([false], [0], [1], [1000000000000000], [phamNftContractAddress])
+    await market.listMktItem([false], [0], [2], [1000000000000000], [phamNftContractAddress])
+    await market.listMktItem([false], [0], [3], [1000000000000000], [phamNftContractAddress])
+    await market.listMktItem([false], [0], [4], [1000000000000000], [phamNftContractAddress])
     console.log("Items 1-5 listed for sale")
     console.log("______________________")
 
@@ -233,7 +241,11 @@ describe("MarketPlace Offers Contract Unit Test", function() {
     })
     console.log("______________________")
     await phamNft.connect(userAddress).setApprovalForAll(marketAddress, true);
-    await market.connect(userAddress).listMktItem([false,false,false,false,false], [0,0,0,0,0], [0,1,2,3,4], [1000000000000000,1000000000000000,1000000000000000,1000000000000000,1000000000000000], [phamNftContractAddress,phamNftContractAddress,phamNftContractAddress,phamNftContractAddress,phamNftContractAddress])
+    await market.connect(userAddress).listMktItem([false], [0], [0], [1000000000000000], [phamNftContractAddress])
+    await market.connect(userAddress).listMktItem([false], [0], [1], [1000000000000000], [phamNftContractAddress])
+    await market.connect(userAddress).listMktItem([false], [0], [2], [1000000000000000], [phamNftContractAddress])
+    await market.connect(userAddress).listMktItem([false], [0], [3], [1000000000000000], [phamNftContractAddress])
+    await market.connect(userAddress).listMktItem([false], [0], [4], [1000000000000000], [phamNftContractAddress])
     console.log("Successfully approved marketplace and listed 5 items with new owner")
     console.log("______________________")
     await phamNft.setApprovalForAll(marketTradesAddress, true);
