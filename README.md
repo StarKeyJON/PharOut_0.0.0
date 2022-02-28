@@ -6,7 +6,7 @@ NFT Marketplace and social media platform
 ![Market Diagram](https://github.com/StarKeyJON/PharOut_0.0.0/blob/main/pharoutmarketdiagram.png)
 <p>
 A NFT marketplace that allows the trading of any NFT collection, purchasing of NFTs in ETH, bidding in ETH and offering ERC20's.
-Place a bid, trade or ERC20 offer on any specific unlisted item or collection-wide(any NFT holder of that collection can claim).
+Place a "blind" bid, trade or ERC20 offer on any specific unlisted item or collection-wide(any NFT holder of that collection can claim).
   </p>
   <br/>
 # Rewards
