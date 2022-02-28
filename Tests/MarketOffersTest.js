@@ -4,7 +4,7 @@ const { use } = require("chai");
 const { expect } = require("chai");
 const { solidity } = require("ethereum-waffle");
 const Web3 = require('web3');
-const { utils } = require("ethers");
+const { utils, BigNumber } = require("ethers");
 // const toBN = Web3.utils.toBN;
 // use(solidity);
 
@@ -97,19 +97,22 @@ describe("MarketPlace Offers Contract Unit Test", function() {
     await roleProvider.setRoleAdd(roleProviderAddress);
     await roleProvider.setOwnerProxyAdd(ownerProxyAddress);
     await roleProvider.setPhunkyAdd(tokenAddress);
-    await roleProvider.setDevSigAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+    await roleProvider.setDevSigAddress(testDao.getAddress());
     await roleProvider.setNftAdd(phamNftContractAddress);
     console.log("Initialized all the contract addresses to the Owner Proxy contract and assigned Contract_Role.")
-    await roleProvider.grantRole("0x0000000000000000000000000000000000000000000000000000000000000000",ownerProxyAddress);
-    await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2","0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
-    const address = await testDev.getAddress();
+    await roleProvider.grantRole("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",ownerProxyAddress);
+    await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDao.getAddress())
+    await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDev.getAddress())
+    // await roleProvider.grantRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",ownerProxyAddress);
+    // await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDao.getAddress())
+    const address = await testDao.getAddress();
     const balance = await ethers.provider.getBalance(address);
     const eth = ethers.utils.formatEther(balance);
     console.log(address, eth);
     await marketCollections.editMarketplaceContract([false],["PHAM"],[phamNftContractAddress])
     
     await marketMint.setNewRedemption(200, tokenAddress);
-    await marketMint.fetchRedemptionTokens().then(async(ack) =>{
+    await marketMint.connect(testDao).fetchRedemptionTokens().then(async(ack) =>{
       expect(await ack[0].redeemAmount.toNumber() === 200)
     })
     await marketCollections.setTokenList([true], [tokenAddress])
@@ -169,18 +172,19 @@ describe("MarketPlace Offers Contract Unit Test", function() {
 
     // It should approve and list newly minted NFTs
     await phamNft.setApprovalForAll(marketAddress, true);
-    await market.listMktItem([false,false,false], [0,0,0], [0,1,2], [1000000000000000,1000000000000000,1000000000000000], [phamNftContractAddress,phamNftContractAddress,phamNftContractAddress])
+    await market.listMktItem([false,false,false], [0,0,0], [0,1,2], [ethers.utils.parseUnits("1","ether"),ethers.utils.parseUnits("1","ether"),ethers.utils.parseUnits("1","ether")], [phamNftContractAddress,phamNftContractAddress,phamNftContractAddress])
     console.log("Item 1, 2 and 3 listed for sale")
     console.log("______________________")
 
     await market.fetchMktItems().then((res)=>{
       res.forEach(item=>{
+        const wei = BigNumber.from(item.price);
         console.log(
           {
           is1155: item.is1155,
           itemId: item.itemId.toNumber(),
           amount1155: item.amount1155.toNumber(),
-          price: item.price.toNumber(),
+          price: ethers.utils.formatUnits(wei,"ether"),
           tokenId: item.tokenId.toNumber(),
           nftContract: item.nftContract,
           seller: item.seller,
@@ -191,16 +195,17 @@ describe("MarketPlace Offers Contract Unit Test", function() {
       
     })
     // It should sell the listed NFTs to test user 1
-    await market.connect(userAddress).buyMarketItems([1], { value: 1000000000000000})
+    await market.connect(userAddress).buyMarketItems([1], { value: ethers.utils.parseUnits("1","ether")})
     console.log("Item 1 sold to "+userAddress.address)
-    await market.connect(userAddress).buyMarketItems([2], { value: 1000000000000000})
+    await market.connect(userAddress).buyMarketItems([2], { value: ethers.utils.parseUnits("1","ether")})
     console.log("Item 2 sold to "+userAddress.address)
-    await market.connect(userAddress).buyMarketItems([3], { value: 1000000000000000})
+    await market.connect(userAddress).buyMarketItems([3], { value: ethers.utils.parseUnits("1","ether")})
     console.log("Item 3 sold to "+userAddress.address)
     
     console.log("______________________")
     await market.fetchMktItems().then((res)=>{
       res.forEach(item=>{
+
         console.log(
           {
           is1155: item.is1155,
@@ -218,10 +223,10 @@ describe("MarketPlace Offers Contract Unit Test", function() {
     })
     console.log("______________________")
     await phamNft.connect(userAddress).setApprovalForAll(marketAddress, true);
-    await market.connect(userAddress).listMktItem([false,false,false], [0,0,0], [0,1,2], [1000000000000000,1000000000000000,1000000000000000], [phamNftContractAddress,phamNftContractAddress,phamNftContractAddress])
+    await market.connect(userAddress).listMktItem([false,false,false], [0,0,0], [0,1,2], [ethers.utils.parseUnits(".1","ether"),ethers.utils.parseUnits(".1","ether"),ethers.utils.parseUnits(".1","ether")], [phamNftContractAddress,phamNftContractAddress,phamNftContractAddress])
     console.log("Successfully approved marketplace and listed 3 items with new owners")
     console.log("______________________")
-    await token.approve(marketOffersAddress, 4000);
+    await token.approve(marketOffersAddress, 600);
     await marketOffers.enterOfferForNft([1], [200], [tokenAddress], [userAddress.address])
     console.log("Placed Offer for tokenId #0 NFT, itme #1")
     await marketOffers.enterOfferForNft([2], [200], [tokenAddress], [userAddress.address])
@@ -244,7 +249,7 @@ describe("MarketPlace Offers Contract Unit Test", function() {
 
     await marketOffers.enterBlindOffer([false], [0], [0], [200], [tokenAddress],["0xf07468ead8cf26c752c676e43c814fee9c8cf402"])
     console.log("Successfully entered a blind offer on CryptoPhunks v2 tokenId #0, contract address 0xf07468ead8cf26c752c676e43c814fee9c8cf402")
-    // await marketBids.connect(userAddress).withdrawBid([])
+
     let offers = await marketOffers.fetchBlindOffers()
     console.log("Market Blind Offers: " + offers)
     await marketOffers.withdrawOffer([1],[true]);
@@ -270,7 +275,7 @@ describe("MarketPlace Offers Contract Unit Test", function() {
 
     await marketOffers.connect(userAddress).acceptOfferForNft([2]);
     console.log("______________________")
-    console.log("Accepted Bid for #2 NFT")
+    console.log("Accepted Offer for #2 NFT")
     await marketOffers.fetchOffers().then(res=>{
       res.forEach(item=>{
         console.log({
@@ -290,12 +295,13 @@ describe("MarketPlace Offers Contract Unit Test", function() {
     console.log("______________________")
     await market.fetchMktItems().then((res)=>{
       res.forEach(item=>{
+
         console.log(
           {
           is1155: item.is1155,
           itemId: item.itemId.toNumber(),
           amount1155: item.amount1155.toNumber(),
-          price: item.price.toNumber(),
+          price: ethers.utils.formatEther(item.price),
           tokenId: item.tokenId.toNumber(),
           nftContract: item.nftContract,
           seller: item.seller,
