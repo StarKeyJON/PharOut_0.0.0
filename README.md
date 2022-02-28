@@ -9,6 +9,22 @@ A NFT marketplace that allows the trading of any NFT collection, purchasing of N
 Place a "blind" bid, trade or ERC20 offer on any specific unlisted item or collection-wide(any NFT holder of that collection can claim).
   </p>
   <br/>
+<h3>
+  Current Rinkeby Contracts
+  </h3>
+<ul>
+ <li> RoleProvider.sol: https://rinkeby.etherscan.io/address/0x0e67b62ceadf932b6572b172a1ccb2284d290941 </li>
+  <li> OwnerProxy.sol: https://rinkeby.etherscan.io/address/0x4911a8a28bde446953c6a30109d7293bd6481751 </li>
+  <li> NFTMarket.sol: https://rinkeby.etherscan.io/address/0x523443a8e96ea4cae52a6634aed92331af5330c5 </li>
+  <li> MarketMint.sol: https://rinkeby.etherscan.io/address/0x0062cfb8f07a8abeebb2c6b87a6786a4097cf3dd </li>
+  <li> PhamNFTs.sol: https://rinkeby.etherscan.io/token/0x11a02f33bab17e06ee7e9979403cfdeff6ff7684 </li>
+  <li> MarketBids.sol: https://rinkeby.etherscan.io/address/0xdd8ba56c5979fe366736458ead3a54b7bd03b409 </li>
+  <li> MarketCollections.sol: https://rinkeby.etherscan.io/address/0xe62f4834bd82e6cae069e85c90a6fe4b24175e41 </li>
+  <li> MarketOffers.sol: https://rinkeby.etherscan.io/address/0x8c2f1ab96203c8a75c8e9f81400a6e2208f68fae </li>
+  <li> MarketTrades.sol: https://rinkeby.etherscan.io/address/0xf129f3327a060db1d3185b923965d747a5b091ab </li>
+  <li> MarketRewards.sol: https://rinkeby.etherscan.io/address/0xc8d604d31ea6f1e6bf772273240cf94abd6375c4 </li>
+  </ul>
+</br>
 # Rewards
 <h4>
 Platform fees are set by the DAO, initialized at 2%.
