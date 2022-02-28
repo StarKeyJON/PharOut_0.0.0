@@ -1,7 +1,7 @@
 # PharOut_0.0.0
-<h5>
+<h3>
 NFT Marketplace and social media platform
-  </h5>
+  </h3>
 
 ![Market Diagram](https://github.com/StarKeyJON/PharOut_0.0.0/blob/main/pharoutmarketdiagram.png)
 <p>
@@ -10,9 +10,9 @@ Place a bid, trade or ERC20 offer on any specific unlisted item or collection-wi
   </p>
   <br/>
 # Rewards
-<h5>
+<h4>
 Platform fees are set by the DAO, initialized at 2%.
-  </h5>
+  </h4>
 If you hold a platform NFT(redeemable with PHUNKY or other tokens set by the DAO), there is no trading fee.
 <p>
 When you list an item for sale, you are recorded for rewards but not yet allowed. When your first item sells while you have items remaining listed, you become eligible to claim rewards. The rewards distribution is based on an unique claim clock that records 3 sets of times and the current set total eligible user count.  </p>
@@ -27,9 +27,17 @@ Anyone can call the function to set the claim clock, this sets the current time 
  ![Rewards Diagram](https://github.com/StarKeyJON/PharOut_0.0.0/blob/main/PharOutRewardsControllerDiagram.png)
  
  </br>
+ 
  <p>
   There is a social media aspect of this that is built on top of a distributed cyber security database. You can create a profile using either your IP address, or your wallet address if you are signed in with web3. You can create a user profile, send personal messages to any crypto address, chat with the world and share pics/videos/gifs on a twitter like public forum, with more expansion to come including video chats, gaming server rooms and much more!
   </p>
-  
-  <h6>If interested in supporting...</h6>
+<p>
+  Here are a few screenshots from the current build. Mind you, I have built this myself and we still need to go through UX trials and suggested styling, so feel free to open comments on suggestions for styling or layouts on any of the screenshots. These are not exhaustive of all of the available components, but allows a brief introduction to the site.
+  </p>
+![FE Screenshot_1](https://github.com/StarKeyJON/PharOut_0.0.0/blob/main/FE%20Preview/Screen%20Shot%202022-02-26%20at%209.38.48%20PM.png)
+![FE Screenshot_2](https://github.com/StarKeyJON/PharOut_0.0.0/blob/main/FE%20Preview/Screen%20Shot%202022-02-26%20at%209.40.10%20PM.png)
+![FE Screenshot_3](https://github.com/StarKeyJON/PharOut_0.0.0/blob/main/FE%20Preview/Screen%20Shot%202022-02-26%20at%209.41.15%20PM.png)
+![FE Screenshot_4](https://github.com/StarKeyJON/PharOut_0.0.0/blob/main/FE%20Preview/Screen%20Shot%202022-02-26%20at%209.42.54%20PM.png)
+![FE Screenshot_5](https://github.com/StarKeyJON/PharOut_0.0.0/blob/main/FE%20Preview/Screen%20Shot%202022-02-26%20at%209.46.58%20PM.png)
+  <h4>If interested in supporting...</h4>
   <p>Please consider donating to phunkyJON.eth</p>
