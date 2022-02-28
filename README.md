@@ -13,7 +13,7 @@ Place a "blind" bid, trade or ERC20 offer on any specific unlisted item or colle
   Current Rinkeby Contracts
   </h3>
 <ul>
- <li> RoleProvider.sol: https://rinkeby.etherscan.io/address/0x5568371a94d3717411dcbd55ddd921e79d222f71#code </li>
+ <li> MarketRoleProvider.sol: https://rinkeby.etherscan.io/address/0x5568371a94d3717411dcbd55ddd921e79d222f71#code </li>
   <li> OwnerProxy.sol: https://rinkeby.etherscan.io/address/0x2cB4A2951ed52672671145F8a62214B6C27d63Da#code </li>
   <li> NFTMarket.sol: https://rinkeby.etherscan.io/address/0xeE4668d61A574c5D63fbF7e8431F7FE5E654dC99#code </li>
   <li> MarketMint.sol: https://rinkeby.etherscan.io/address/0xE862d9fD08171080630E3D387c9511460636247E#code </li>
