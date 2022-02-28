@@ -16,7 +16,7 @@ describe("MarketPlace Mint ERC721 Contract Unit Test", function() {
     const [testDao, testDev, userAddress] = await ethers.getSigners();
 
     const RoleProvider = await ethers.getContractFactory("MarketRoleProvider");
-    const roleProvider = await RoleProvider.deploy("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+    const roleProvider = await RoleProvider.deploy(testDao.address);
     await roleProvider.deployed();
     const roleProviderAddress = roleProvider.address;
     console.log("Role provider Address is: ", roleProviderAddress);
@@ -96,16 +96,25 @@ describe("MarketPlace Mint ERC721 Contract Unit Test", function() {
     await roleProvider.setRoleAdd(roleProviderAddress);
     await roleProvider.setOwnerProxyAdd(ownerProxyAddress);
     await roleProvider.setPhunkyAdd(tokenAddress);
-    await roleProvider.setDevSigAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+    await roleProvider.setDevSigAddress(testDev.address);
     await roleProvider.setNftAdd(phamNftContractAddress);
     console.log("Initialized all the contract addresses to the Owner Proxy contract and assigned Contract_Role.")
-    await roleProvider.grantRole("0x0000000000000000000000000000000000000000000000000000000000000000",ownerProxyAddress);
-    await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2","0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
-    const address = await testDev.getAddress();
+    /// Trying to set the bytes to address is throwing errors on checking for DEV_ROLE
+    // await roleProvider.setAddressGivenBytes("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDev.address)
+    /// Switched it to grantRole(). It appears the deployer may need to remain DEFAULT_ROLE
+    await roleProvider.grantRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDev.address)
+
+    await roleProvider.setAddressGivenBytes("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",testDao.address)
+    await roleProvider.grantRole("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",testDev.address)
+    await roleProvider.fetchAddress("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2").then(res=>{console.log(res)})
+    await roleProvider.fetchAddress("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b").then(res=>{console.log(res)})
+
+    console.log(testDev.address)
+     const address = await testDev.getAddress();
     const balance = await ethers.provider.getBalance(address);
     const eth = ethers.utils.formatEther(balance);
     console.log(address, eth);
-    await rewardsController.addDev(testDev.address);
+    await rewardsController.connect(testDev).addDev(testDev.address);
     
     await marketMint.setNewRedemption(200, tokenAddress);
     await marketMint.fetchRedemptionTokens().then(async(ack) =>{
