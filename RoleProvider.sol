@@ -110,6 +110,7 @@ contract MarketRoleProvider is AccessControl {
   constructor(address _controller) {
       _setupRole(DEFAULT_ADMIN_ROLE,_controller);
       _setupRole(PROXY_ROLE, _controller);
+      _setupRole(DEV_ROLE, _controller);
   }
 
   modifier hasAdmin(){
@@ -117,7 +118,7 @@ contract MarketRoleProvider is AccessControl {
     _;
   }
 
-  ///@notice For setting new roles by giving 
+  ///@notice For setting new roles
   /*
    bytes32 key: bytes of the role desired
    address _sig: address of the contract to be assigned the role
@@ -135,49 +136,41 @@ contract MarketRoleProvider is AccessControl {
   function setMarketAdd(address _mrktAdd) hasAdmin public returns(bool){
     marketplaceAdd = _mrktAdd;
     marketBytes[MARKET]= _mrktAdd;
-    grantRole(CONTRACT_ROLE, _mrktAdd);
     return true;
   }
   function setNftAdd(address _nftAdd) hasAdmin public returns(bool){
     nftAdd = _nftAdd;
     marketBytes[NFT]= _nftAdd;
-    grantRole(CONTRACT_ROLE, _nftAdd);
     return true;
   }
   function setMarketMintAdd(address _mintAdd) hasAdmin public returns(bool){
     marketMintAdd = _mintAdd;
     marketBytes[MINT] = _mintAdd;
-    grantRole(CONTRACT_ROLE, _mintAdd);
     return true;
   }
    function setCollectionsAdd(address _collAdd) hasAdmin public returns(bool){
     collectionsAdd = _collAdd;
     marketBytes[COLLECTION] = _collAdd;
-    grantRole(CONTRACT_ROLE, _collAdd);
     return true;
   }
   function setOffersAdd(address _offAdd) hasAdmin public returns(bool){
     offersAdd = _offAdd;
     marketBytes[OFFERS] = _offAdd;
-    grantRole(CONTRACT_ROLE, _offAdd);
     return true;
   }
   function setTradesAdd(address _tradAdd) hasAdmin public returns(bool){
     tradesAdd = _tradAdd;
     marketBytes[TRADES] = _tradAdd;
-    grantRole(CONTRACT_ROLE, _tradAdd);
     return true;
   }
   function setBidsAdd(address _bidsAdd) hasAdmin public returns(bool){
     bidsAdd = _bidsAdd;
     marketBytes[BIDS] = _bidsAdd;
-    grantRole(CONTRACT_ROLE, _bidsAdd);
     return true;
   }
   function setRwdsAdd(address _rwdsAdd) hasAdmin public returns(bool){
     rewardsAdd = _rwdsAdd;
     marketBytes[REWARDS] = _rwdsAdd;
-    grantRole(CONTRACT_ROLE, _rwdsAdd);
     return true;
   }
   function setRoleAdd(address _role) public hasAdmin returns(bool){
@@ -188,7 +181,6 @@ contract MarketRoleProvider is AccessControl {
   function setOwnerProxyAdd(address _proxyAdd) public hasAdmin returns(bool){
     ownerProxyAdd = _proxyAdd;
     marketBytes[PROXY]=_proxyAdd;
-    grantRole(CONTRACT_ROLE, _proxyAdd);
     return true;
   }
   function setPhunkyAdd(address _phunky) public hasAdmin returns(bool) {
@@ -201,14 +193,35 @@ contract MarketRoleProvider is AccessControl {
     marketBytes[DEV] = _sig;
     return true;
   }
+  function setDevRole(address _sig) public hasAdmin returns(bool){
+    marketBytes[DEV_ROLE] = _sig;
+  }
 
   function fetchAddress(bytes32 _var) public view returns(address){
     return marketBytes[_var];
   }
 
   function hasTheRole(bytes32 role, address _address) public view returns(bool){
-    bool isTrue = hasRole(role, _address);
-    return isTrue;
+    return hasRole(role, _address);
+  }
+
+  function hasContractRole(address _address) public view returns(bool){
+    if(_address == marketBytes[MARKET]){
+      return true;
+    }
+    if (_address == marketBytes[BIDS]){
+      return true;
+    }
+    if(_address == marketBytes[OFFERS]){
+      return true;
+    }
+    if(_address == marketBytes[TRADES]){
+      return true;
+    }
+    if(_address == marketBytes[MINT]){
+      return true;
+    } 
+    return false;
   }
 
   ///@notice
