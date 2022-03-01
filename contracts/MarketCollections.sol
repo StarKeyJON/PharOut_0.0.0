@@ -92,13 +92,11 @@ contract MarketCollections {
 
   //*~~~> Memory array of all listed Market Collections
   mapping(address => bool) private addressToRestricted;
-  mapping(address => string) private addressToName;
   mapping(address => bool) private addressToOfferable;
 
   //*~~~> Declaring event object structure for updated collection
   event CollectionUpdated(
     bool isNotTradable,
-    string collectionName,
     address indexed collectionContract
   );
 
@@ -112,19 +110,17 @@ contract MarketCollections {
   /// @dev 
     /*~~~>
       restricted: (true) if collection cannot trade;
-      name: Name of the collection;
       nftContract: collection contract address;
       <~~~*/
   /// @return Bool
   function editMarketplaceContract(
     bool[] memory restricted,
-    string[] memory name,
     address[] memory nftContract
     ) public hasAdmin returns (bool) {
     for (uint i; i<nftContract.length; i++) {
       address contract1 = nftContract[i];
       addressToRestricted[contract1] = restricted[i];
-      emit CollectionUpdated(restricted[i], name[i], contract1);
+      emit CollectionUpdated(restricted[i], contract1);
     }
     return true;
   }
@@ -139,12 +135,6 @@ contract MarketCollections {
 
   function canOfferToken(address token) public view returns(bool){
     return addressToOfferable[token];
-  }
-
-  /// @notice
-    //*~~~> Public read functions for internal state
-  function fetchName(address nftContract) public view returns (string memory) {
-    return addressToName[nftContract];
   }
 
   // checks if the collection is restricted from trading, returns false if not
