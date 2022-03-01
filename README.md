@@ -15,7 +15,7 @@ Place a "blind" bid, trade or ERC20 offer on any specific unlisted item or colle
 <ul>
  <li> MarketRoleProvider.sol: https://rinkeby.etherscan.io/address/0x20523731975A1633eA928650a7BC974AFEa32739#code </li>
   <li> OwnerProxy.sol: https://rinkeby.etherscan.io/address/0x2ee8EA56AE8f16977330d4537232CF8d6F053f38#code </li>
-  <li> NFTMarket.sol: https://rinkeby.etherscan.io/address/0x386660B2edB760577E8ED683AdD190E1bcc27ceb#code </li>
+  <li> NFTMarket.sol: https://rinkeby.etherscan.io/address/0x2451E02AEAa8F142f9A8D54A872CE0B74CA9D7Bf#code </li>
   <li> MarketMint.sol: https://rinkeby.etherscan.io/address/0x15c132F02a7B7210c521C9E715BaB9E9a92381F4#code </li>
   <li> (used for testing ERC20 interaction) PhamToken:  https://rinkeby.etherscan.io/address/0x384c377e94E8afEa7f2e41b45919D8607d937771#code </li>
   <li> PhamNFTs.sol: https://rinkeby.etherscan.io/token/0x6d4Be00F4968D563492f6F279e1800AC8540eA92#code </li>
