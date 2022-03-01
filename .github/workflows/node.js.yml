@@ -31,3 +31,12 @@ jobs:
     - run: npm install
     - run: npm run build --if-present
     - run: npm run test
+    - name: Medici CI - Slither
+      # You may pin to the exact commit or the version.
+      # uses: medici-tech/slither-action@1d287679312f204f109bf18edcc14c89956daca6
+      uses: medici-tech/slither-action@v0.0.1
+      with:
+        # Path to Solidity smart contract(s)
+        contracts-path: 'contracts'
+        # The version of Truffle to run on the codebase, such as "truffle@5.0.0". Default is "truffle", which will use the latest.
+
