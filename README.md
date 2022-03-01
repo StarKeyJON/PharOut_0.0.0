@@ -8,23 +8,6 @@ NFT Marketplace and social media platform
 A NFT marketplace that allows the trading of any NFT collection, purchasing of NFTs in ETH, bidding in ETH and offering ERC20's.
 Place a "blind" bid, trade or ERC20 offer on any specific unlisted item or collection-wide(any NFT holder of that collection can claim).
   </p>
-  <br/>
-<h3>
-  Current Rinkeby Contracts
-  </h3>
-<ul>
- <li> MarketRoleProvider.sol: https://rinkeby.etherscan.io/address/0x69032E72d15a6BE3aB66Bd9A38960a519764F32C#code </li>
-  <li> OwnerProxy.sol: https://rinkeby.etherscan.io/address/0x415a537b34326A34df6308A7F276563a3bd95A76#code </li>
-  <li> NFTMarket.sol: https://rinkeby.etherscan.io/address/0xe3829FB338814Ab319aB46D2089E0D44Edea7E04#code </li>
-  <li> MarketMint.sol: https://rinkeby.etherscan.io/address/0x754B14a3D669910B9475F896e77355C6DE5C8979#code </li>
-  <li> (used for testing ERC20 interaction) PhamToken:  https://rinkeby.etherscan.io/address/0xF40D3e227530F0219aF282feaf5146646234E802#code </li>
-  <li> PhamNFTs.sol: https://rinkeby.etherscan.io/token/0x607f540C0aBfB74834fd638855503CcA26091538#code </li>
-  <li> MarketBids.sol: https://rinkeby.etherscan.io/address/0x69306b2C8Ee860A09B8B4CbAe22F1858c19c008D#code </li>
-  <li> MarketCollections.sol: https://rinkeby.etherscan.io/address/0xDAc4A9F6c3aaa755d7C985D43029C094D7dcF008#code </li>
-  <li> MarketOffers.sol: https://rinkeby.etherscan.io/address/0x8610690FbA87D0AF5590012e189755D67029F469#code </li>
-  <li> MarketTrades.sol: https://rinkeby.etherscan.io/address/0x8a3d117508B28c4C7a06A9EeC741717FE9F1b31A#code </li>
-  <li> MarketRewards.sol: https://rinkeby.etherscan.io/address/0x90Cb5152CD78d04D72045E2970c25C7C047bD33c#code </li>
-  </ul>
 </br>
 # Rewards
 <h4>
