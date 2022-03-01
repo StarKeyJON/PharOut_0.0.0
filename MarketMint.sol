@@ -187,7 +187,6 @@ contract Mint is ReentrancyGuard, Pausable {
   /*~~~>
     uint id: index to the redemption token struct;
     uint amount: amount needed to redeem;
-    uint count: amount of NFTs to redeem;
     address to: address to mint the NFT to;
   <~~~*/
   /// @return Bool
@@ -201,15 +200,14 @@ contract Mint is ReentrancyGuard, Pausable {
 
     IERC20 tokenContract = IERC20(token.contractAddress);
     uint256 allowance = tokenContract.allowance(msg.sender, address(this));
-    require(allowance >= amount, "Check the token allowance");
-    tokenContract.transferFrom(msg.sender, (address(this)), amount);
+    require(allowance >= token.redeemAmount, "Check the token allowance");
+    tokenContract.transferFrom(msg.sender, rewardsAddress, token.redeemAmount);
     
     MarketNFT(nftAddress).safeMint(to);
     _nftsCreated.increment();
     uint256 nftId = _nftsCreated.current();
     _idToNft[nftId] = NFT(nftId, msg.sender);
-    (tokenContract).transfer(rewardsAddress, amount);
-    RewardsController(rewardsAddress).depositERC20Rewards(amount, token.contractAddress);
+    RewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress);
     RewardsController(rewardsAddress).createNftHodler(nftId);
 
     emit nftCreated(nftId, msg.sender);
