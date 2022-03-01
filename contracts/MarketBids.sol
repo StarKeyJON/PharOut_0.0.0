@@ -268,11 +268,12 @@ contract MarketBids is ReentrancyGuard, Pausable {
     uint[] memory itemId,
     uint[] memory bidValue,
     address[] memory seller
-  ) public payable whenNotPaused returns(bool){
+  ) public payable whenNotPaused nonReentrant returns(bool){
     uint total;
     for (uint i;i < tokenId.length;i++){
       total = total.add(bidValue[i]);
       require(bidValue[i] > 1e12, "Must be greater than 1e12 gwei.");
+      require(seller[i] != address(0), "Seller cannot be zero");
       /*~~~> 
         Check for the case where there is a bid.
           If the bid entered is lesser than the existing bid, revert.
@@ -330,11 +331,13 @@ contract MarketBids is ReentrancyGuard, Pausable {
     address[] memory bidAddress) public payable whenNotPaused nonReentrant returns(bool){
 
     address collectionAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
+    require(collectionAdd != address(0), "Collection address is not set in RoleProvider");
     
     uint total;
     for (uint i;i<bidAddress.length;i++){
       total = total.add(value[i]);
       require(value[i] > 1e12, "Must be greater than 1e12 gwei.");
+      require(bidAddress[i] != address(0), "Inputting zero address to bid on");
       require(Collections(collectionAdd).isRestricted(bidAddress[i]) == false);
       uint bidId;
       uint len = blindOpenStorage.length;
@@ -379,7 +382,6 @@ contract MarketBids is ReentrancyGuard, Pausable {
     uint[] memory listedId, 
     bool[] memory is1155) public whenNotPaused nonReentrant returns(bool){
     
-    address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
     address marketAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
     uint balance = IERC721(marketAdd).balanceOf(msg.sender);
 
@@ -390,6 +392,8 @@ contract MarketBids is ReentrancyGuard, Pausable {
           require(tokenId[i]==bid.tokenId,"Wrong item!");
         }
         if(balance<1){
+          address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
+          require(rewardsAdd != address(0), "Rewards Address not set in Role Provider");
           /*~~~> Calculating the platform fee <~~~*/
           uint256 saleFee = calcFee(bid.bidValue);
           uint256 userAmnt = bid.bidValue.sub(saleFee);

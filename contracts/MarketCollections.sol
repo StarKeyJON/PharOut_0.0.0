@@ -139,6 +139,7 @@ contract MarketCollections {
 
   // checks if the collection is restricted from trading, returns false if not
   function isRestricted(address nftContract) public view returns (bool) {
+    require(nftContract != address(0), "Trying to check zero address");
     return addressToRestricted[nftContract];
   }
 
