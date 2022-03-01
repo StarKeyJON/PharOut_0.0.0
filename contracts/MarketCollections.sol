@@ -98,7 +98,6 @@ contract MarketCollections {
   //*~~~> Declaring event object structure for updated collection
   event CollectionUpdated(
     bool isNotTradable,
-    string collectionName,
     address indexed collectionContract
   );
 
@@ -112,19 +111,17 @@ contract MarketCollections {
   /// @dev 
     /*~~~>
       restricted: (true) if collection cannot trade;
-      name: Name of the collection;
       nftContract: collection contract address;
       <~~~*/
   /// @return Bool
   function editMarketplaceContract(
     bool[] memory restricted,
-    string[] memory name,
     address[] memory nftContract
     ) public hasAdmin returns (bool) {
     for (uint i; i<nftContract.length; i++) {
       address contract1 = nftContract[i];
       addressToRestricted[contract1] = restricted[i];
-      emit CollectionUpdated(restricted[i], name[i], contract1);
+      emit CollectionUpdated(restricted[i], contract1);
     }
     return true;
   }
