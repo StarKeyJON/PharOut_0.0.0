@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT 
+
+/*~~~> PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -62,6 +63,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  <~~~*/
+
 pragma solidity  >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
@@ -100,6 +102,12 @@ contract MarketCollections {
     address indexed collectionContract
   );
 
+  ///@notice
+    //*~~~> Sets the RoleProvider contract address
+  ///@dev
+    /*~~~>
+      _role: address of the RoleProvider contract;
+    <~~~*/
   function setRoleAdd(address _role) public hasAdmin returns(bool){
     roleAdd = _role;
     return true;
@@ -125,7 +133,13 @@ contract MarketCollections {
     return true;
   }
 
-  //*~~~> sets approved tokens for offers
+  ///@notice
+    //*~~~> sets approved tokens for offers
+  ///@dev
+    /*~~~>
+      bool[] _canOffer: (true) if can offer token;
+      address[] _token: contract address of the token;
+    <~~~*/
   function setTokenList(bool[] calldata _canOffer, address[] calldata _token) public hasAdmin returns (bool) {
     for (uint i; i < _token.length; i++){
       addressToOfferable[_token[i]] = _canOffer[i];
@@ -133,6 +147,7 @@ contract MarketCollections {
     return true;
   }
 
+  // checks if the token can be offered, returns bool;
   function canOfferToken(address token) public view returns(bool){
     return addressToOfferable[token];
   }
@@ -143,7 +158,7 @@ contract MarketCollections {
   }
 
   ///@notice
-  /*~~~> External ETH transfer forwarded to role provider contract <~~~*/
+    /*~~~> External ETH transfer forwarded to role provider contract <~~~*/
   event FundsForwarded(uint value, address _from, address _to);
   receive() external payable {
     payable(roleAdd).transfer(msg.value);
