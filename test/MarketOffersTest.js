@@ -109,7 +109,7 @@ describe("MarketPlace Offers Contract Unit Test", function() {
     const balance = await ethers.provider.getBalance(address);
     const eth = ethers.utils.formatEther(balance);
     console.log(address, eth);
-    await marketCollections.editMarketplaceContract([false],["PHAM"],[phamNftContractAddress])
+    await marketCollections.editMarketplaceContract([false],[phamNftContractAddress])
     
     await marketMint.setNewRedemption(200, tokenAddress);
     await marketMint.connect(testDao).fetchRedemptionTokens().then(async(ack) =>{
