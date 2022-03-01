@@ -31,3 +31,9 @@ jobs:
     - run: npm install
     - run: npm run build --if-present
     - run: npm run test
+    - name: slither-action
+      # You may pin to the exact commit or the version.
+      # uses: crytic/slither-action@d5fc11eb0ec5242fef761679f4acac9c9404104a
+      uses: crytic/slither-action@v0.1.0
+
+
