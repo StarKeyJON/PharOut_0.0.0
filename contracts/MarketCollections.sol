@@ -92,7 +92,6 @@ contract MarketCollections {
 
   //*~~~> Memory array of all listed Market Collections
   mapping(address => bool) private addressToRestricted;
-  mapping(address => string) private addressToName;
   mapping(address => bool) private addressToOfferable;
 
   //*~~~> Declaring event object structure for updated collection
@@ -136,12 +135,6 @@ contract MarketCollections {
 
   function canOfferToken(address token) public view returns(bool){
     return addressToOfferable[token];
-  }
-
-  /// @notice
-    //*~~~> Public read functions for internal state
-  function fetchName(address nftContract) public view returns (string memory) {
-    return addressToName[nftContract];
   }
 
   // checks if the collection is restricted from trading, returns false if not
