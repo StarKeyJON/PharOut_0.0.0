@@ -3,7 +3,9 @@ name: Fuzz
 on:
   push:
     branches:
-      - [main, wg-*, pj-*]
+      - main 
+      - wg-* 
+      - pj-*
   pull_request:
 
 jobs:
