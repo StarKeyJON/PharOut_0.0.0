@@ -55,7 +55,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  >=0.8.0 <0.9.0;
+pragma solidity 0.8.12;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -63,6 +63,8 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+
+import "./interfaces/IRoleProvider.sol";
 
 /*~~~>
 Interface declarations for upgradable contracts
@@ -97,11 +99,6 @@ interface RewardsController {
 interface IERC20 {
   function transfer(address to, uint value) external returns (bool);
 }
-interface RoleProvider {
-  function hasTheRole(bytes32 role, address _address) external returns(bool);
-  function hasContractRole(address _address) external returns(bool);
-  function fetchAddress(bytes32 _var) external returns(address);
-}
 
 contract NFTMarket is ReentrancyGuard, Pausable {
   using SafeMath for uint256;
@@ -116,15 +113,15 @@ contract NFTMarket is ReentrancyGuard, Pausable {
 
   address roleAdd;
   modifier hasAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
     _;
   }
   modifier hasContractAdmin(){
-    require(RoleProvider(roleAdd).hasContractRole(msg.sender), "DOES NOT HAVE CONTRACT ROLE");
+    require(IRoleProvider(roleAdd).hasContractRole(msg.sender), "DOES NOT HAVE CONTRACT ROLE");
     _;
   }
   modifier hasDevAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
     _;
   }
 
@@ -217,7 +214,7 @@ contract NFTMarket is ReentrancyGuard, Pausable {
     <~~~*/
   /// @return platform fee
   function calcFee(uint256 _value) public returns (uint256)  {
-      address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
+      address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
       uint fee = RewardsController(rewardsAdd).getFee();
       uint256 percent = (_value.mul(fee)).div(10000);
       return percent;
@@ -242,12 +239,12 @@ contract NFTMarket is ReentrancyGuard, Pausable {
     address[] memory nftContract
   ) public payable whenNotPaused nonReentrant returns(bool){
 
-    address collsAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
+    address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
     require(tokenId.length>0);
     require(tokenId.length == nftContract.length);
     uint user = addressToUserBal[msg.sender];
     if (user==0) {
-        RewardsController(RoleProvider(roleAdd).fetchAddress(REWARDS)).createUser(msg.sender);
+        RewardsController(IRoleProvider(roleAdd).fetchAddress(REWARDS)).createUser(msg.sender);
       }
     uint tokenLen = tokenId.length;
     for (uint i;i<tokenLen;i++){
@@ -289,10 +286,10 @@ contract NFTMarket is ReentrancyGuard, Pausable {
     uint256[] calldata itemId
   ) public nonReentrant returns(bool){
 
-    address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
-    address bidsAdd = RoleProvider(roleAdd).fetchAddress(BIDS);
-    address offersAdd = RoleProvider(roleAdd).fetchAddress(OFFERS);
-    address tradesAdd = RoleProvider(roleAdd).fetchAddress(TRADES);
+    address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
+    address bidsAdd = IRoleProvider(roleAdd).fetchAddress(BIDS);
+    address offersAdd = IRoleProvider(roleAdd).fetchAddress(OFFERS);
+    address tradesAdd = IRoleProvider(roleAdd).fetchAddress(TRADES);
 
     for (uint i;i<itemId.length;i++){
       MktItem memory it = idToMktItem[itemId[i]];
@@ -348,12 +345,12 @@ contract NFTMarket is ReentrancyGuard, Pausable {
     uint256[] memory itemId
     ) public payable whenNotPaused nonReentrant returns(bool) {
     
-    address bidsAdd = RoleProvider(roleAdd).fetchAddress(BIDS);
-    address offersAdd = RoleProvider(roleAdd).fetchAddress(OFFERS);
-    address tradesAdd = RoleProvider(roleAdd).fetchAddress(TRADES);
-    address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
+    address bidsAdd = IRoleProvider(roleAdd).fetchAddress(BIDS);
+    address offersAdd = IRoleProvider(roleAdd).fetchAddress(OFFERS);
+    address tradesAdd = IRoleProvider(roleAdd).fetchAddress(TRADES);
+    address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
 
-    uint balance = IERC721(RoleProvider(roleAdd).fetchAddress(NFTADD)).balanceOf(msg.sender);
+    uint balance = IERC721(IRoleProvider(roleAdd).fetchAddress(NFTADD)).balanceOf(msg.sender);
     uint prices=0;
     uint length = itemId.length;
     for (uint i; i < length; i++) {
@@ -577,9 +574,9 @@ function transferFromERC721(address assetAddr, uint256 tokenId, address to) inte
   ///@notice internal function to transfer NFT only this contract can call
   function _transferForSale(address receiver, uint itemId) internal {
 
-    address bidsAdd = RoleProvider(roleAdd).fetchAddress(BIDS);
-    address tradesAdd = RoleProvider(roleAdd).fetchAddress(TRADES);
-    address offersAdd = RoleProvider(roleAdd).fetchAddress(OFFERS);
+    address bidsAdd = IRoleProvider(roleAdd).fetchAddress(BIDS);
+    address tradesAdd = IRoleProvider(roleAdd).fetchAddress(TRADES);
+    address offersAdd = IRoleProvider(roleAdd).fetchAddress(OFFERS);
 
     MktItem memory it = idToMktItem[itemId];
     if ( it.is1155 ){

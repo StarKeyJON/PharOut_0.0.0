@@ -55,11 +55,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
- pragma solidity  >=0.8.0 <0.9.0;
+ pragma solidity 0.8.12;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "./interfaces/IRoleProvider.sol";
 
-contract MarketRoleProvider is AccessControl {
+contract MarketRoleProvider is AccessControl, IRoleProvider {
 
   address public marketplaceAdd;
   address public daoAdd;

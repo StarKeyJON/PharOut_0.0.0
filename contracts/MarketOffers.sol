@@ -55,7 +55,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  >=0.8.0 <0.9.0;
+pragma solidity  0.8.12;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -63,6 +63,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+
+import "./interfaces/IRoleProvider.sol";
 
 /*~~~>
 Interface declarations for upgradable contracts
@@ -80,10 +82,6 @@ interface IERC20 {
   function transfer(address recipient, uint256 amount) external returns (bool);
   function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
   event Transfer(address indexed from, address indexed to, uint256 value);
-}
-interface RoleProvider {
-  function hasTheRole(bytes32 role, address _address) external returns(bool);
-  function fetchAddress(bytes32 _var) external returns(address);
 }
 interface Bids {
   function fetchBidId(uint marketId) external returns(uint);
@@ -112,15 +110,15 @@ contract MarketOffers is ReentrancyGuard, Pausable {
   bytes32 public constant CONTRACT_ROLE = keccak256("CONTRACT_ROLE");
   bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE");
   modifier hasAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
     _;
   }
   modifier hasContractAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(CONTRACT_ROLE, msg.sender), "DOES NOT HAVE CONTRACT ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(CONTRACT_ROLE, msg.sender), "DOES NOT HAVE CONTRACT ROLE");
     _;
   }
   modifier hasDevAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
     _;
   }
 
@@ -241,7 +239,7 @@ contract MarketOffers is ReentrancyGuard, Pausable {
     <~~~*/
   /// @return platform fee
   function calcFee(uint256 _value) public returns (uint256)  {
-      address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
+      address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
       uint fee = RewardsController(rewardsAdd).getFee();
       uint256 percent = (_value.mul(fee)).div(10000);
       return percent;
@@ -266,7 +264,7 @@ contract MarketOffers is ReentrancyGuard, Pausable {
     address[] memory seller
   ) public nonReentrant returns(bool){
 
-    address collsAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
+    address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
 
       for (uint i; i< itemId.length; i++) {
       require(Collections(collsAdd).canOfferToken(tokenCont[i]),"Unknown token!");
@@ -321,7 +319,7 @@ contract MarketOffers is ReentrancyGuard, Pausable {
   ) public nonReentrant{
     for (uint i; i<tokenCont.length;i++){
       
-      address collsAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
+      address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
 
       uint256 allowance = IERC20(tokenCont[i]).allowance(msg.sender, address(this));
       require(allowance >= amount[i], "Check the token allowance");
@@ -375,10 +373,10 @@ contract MarketOffers is ReentrancyGuard, Pausable {
     bool[] memory is1155
   ) public nonReentrant returns(bool){
 
-    address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
-    address mrktAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
+    address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
+    address mrktAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
 
-    uint balance = IERC721(RoleProvider(roleAdd).fetchAddress(NFTADD)).balanceOf(msg.sender);
+    uint balance = IERC721(IRoleProvider(roleAdd).fetchAddress(NFTADD)).balanceOf(msg.sender);
     for (uint i; i<blindOfferId.length;i++){
       BlindOffer memory offer = idToBlindOffer[blindOfferId[i]];
       IERC20 tokenContract = IERC20(offer.tokenCont);
@@ -423,11 +421,11 @@ contract MarketOffers is ReentrancyGuard, Pausable {
   ///@return Bool
   function acceptOfferForNft(uint[] calldata offerId) public nonReentrant returns(bool){
 
-    address mrktNft = RoleProvider(roleAdd).fetchAddress(NFTADD);
-    address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
-    address bidsAdd = RoleProvider(roleAdd).fetchAddress(BIDS);
-    address tradesAdd = RoleProvider(roleAdd).fetchAddress(TRADES);
-    address mrktAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
+    address mrktNft = IRoleProvider(roleAdd).fetchAddress(NFTADD);
+    address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
+    address bidsAdd = IRoleProvider(roleAdd).fetchAddress(BIDS);
+    address tradesAdd = IRoleProvider(roleAdd).fetchAddress(TRADES);
+    address mrktAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
 
     uint balance = IERC721(mrktNft).balanceOf(msg.sender);
     for (uint i; i<offerId.length; i++) {

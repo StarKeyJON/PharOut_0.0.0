@@ -55,7 +55,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  >=0.8.0 <0.9.0;
+pragma solidity  0.8.12;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -64,15 +64,13 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
+import "./interfaces/IRoleProvider.sol";
+
 /*~~~>
 Interface declarations for upgradable contracts
 <~~~*/
 interface NFTMkt {
     function transferNftForSale(address receiver, uint itemId) external;
-}
-interface RoleProvider {
-  function hasTheRole(bytes32 role, address _address) external returns(bool);
-  function fetchAddress(bytes32 _var) external returns(address);
 }
 interface Offers {
   function fetchOfferId(uint marketId) external returns(uint);
@@ -98,15 +96,15 @@ contract MarketTrades is ReentrancyGuard, Pausable {
   bytes32 public constant CONTRACT_ROLE = keccak256("CONTRACT_ROLE");
   bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE");
   modifier hasAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
     _;
   }
   modifier hasContractAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(CONTRACT_ROLE, msg.sender), "DOES NOT HAVE CONTRACT ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(CONTRACT_ROLE, msg.sender), "DOES NOT HAVE CONTRACT ROLE");
     _;
   }
   modifier hasDevAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
     _;
   }
 
@@ -236,7 +234,7 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       address[] memory seller
   ) public whenNotPaused nonReentrant returns(bool){
     for (uint i;i<itemId.length;i++) {
-      require(Collections(RoleProvider(roleAdd).fetchAddress(COLLECTION)).isRestricted(nftContract[i]) == false);
+      require(Collections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).isRestricted(nftContract[i]) == false);
       uint tradeId;
       if (openStorage.length>=1) {
         tradeId = openStorage[openStorage.length-1];
@@ -299,7 +297,7 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       address[] memory wantContract
   ) public whenNotPaused nonReentrant{
 
-    address collsAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
+    address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
 
     for (uint i;i<tokenId.length;i++) {
       uint tradeId;
@@ -464,9 +462,9 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       uint[] calldata tradeId
   ) public nonReentrant returns(bool){
     
-    address marketAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
-    address bidsAdd = RoleProvider(roleAdd).fetchAddress(BIDS);
-    address offersAdd = RoleProvider(roleAdd).fetchAddress(OFFERS);
+    address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
+    address bidsAdd = IRoleProvider(roleAdd).fetchAddress(BIDS);
+    address offersAdd = IRoleProvider(roleAdd).fetchAddress(OFFERS);
     for(uint i; i<itemId.length;i++) {
       Trade memory trade = idToNftTrade[tradeId[i]];
       require(msg.sender == trade.seller,"Not Owner");
@@ -535,7 +533,7 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       uint[] memory tokenId,
       uint[] memory listedId
   ) public whenNotPaused nonReentrant returns(bool){
-    address marketAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
+    address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
     for(uint i; i<tradeId.length;i++) {
       uint j = tradeId[i];
       BlindTrade memory trade = idToBlindTrade[j];

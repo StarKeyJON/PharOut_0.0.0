@@ -65,10 +65,8 @@
 pragma solidity  >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "./interfaces/IRoleProvider.sol";
 
-interface RoleProvider {
-  function hasTheRole(bytes32 role, address _address) external returns(bool);
-}
 contract MarketCollections {
 
   //*~~~> Roles for designated accessibility
@@ -81,11 +79,11 @@ contract MarketCollections {
     roleAdd = _role;
   }
   modifier hasAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), Mess);
+    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), Mess);
     _;
   }
   modifier hasDevAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), Mess);
+    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), Mess);
     _;
   }
 

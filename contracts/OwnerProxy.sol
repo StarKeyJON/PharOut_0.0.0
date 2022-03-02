@@ -55,10 +55,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  >=0.8.0 <0.9.0;
+pragma solidity  0.8.12;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+
+import "./interfaces/IRoleProvider.sol";
 
 ///@notice
 /*~~~>
@@ -76,9 +78,7 @@ interface MarketMint {
   function setNewRedemption(uint amount, address _toke) external;
   function resetRedemptionToken(uint64 _redeemAmount, address _contract) external;
 }
-interface RoleProvider {
-  function fetchAddress(bytes32 _var) external returns(address);
-  function setMarketAdd(address _mrktAdd) external returns(bool);
+interface RoleProvider is IRoleProvider {
   function setMarketMintAdd(address _mintAdd) external returns(bool);
   function setNftAdd(address _nftAdd) external returns(bool);
   function setCollectionsAdd(address _collAdd) external returns(bool);
@@ -92,6 +92,8 @@ interface RoleProvider {
   function setDevSigAddress(address _sig) external returns(bool);
   function hasTheRole(bytes32 role, address _address) external returns(bool);
   function setAddressGivenBytes(bytes32 key, address _sig) external returns(bool);
+  function setMarketAdd(address _mrktAdd) external returns(bool);
+
 }
 interface RewardsController {
   function setFee(uint _fee) external;
