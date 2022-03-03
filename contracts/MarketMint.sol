@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT 
+
+/*~~~> PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,25 +56,17 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity 0.8.12;
+
+pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./interfaces/IRoleProvider.sol";
 import "./interfaces/IRewardsController.sol";
 
-/*~~~>
-Interface declarations for upgradable contracts
-<~~~*/
-interface MarketNFT {
-  function safeMint(address to) external;
-}
-interface PhamNFT {
-  function balanceOf(address owner) external returns(uint);
-}
 interface IERC20 {
   function balanceOf(address account) external view returns (uint256);
   function allowance(address owner, address spender) external view returns (uint256);
@@ -89,10 +82,12 @@ contract Mint is ReentrancyGuard, Pausable {
   /*~~~>
     State variables
   <~~~*/
-  Counters.Counter private _nftsCreated;
+  Counters.Counter private _nftsRedeemed;
   Counters.Counter private _redemptionERC20;
 
-  uint public deployAmount;
+  // For keeping track of marketplace NFT counts as more are created and redeemed
+  uint totalNfts;
+  uint[] public availableNfts;
   address public roleAdd;
 
   bytes32 public constant NFTADD = keccak256("NFT");
@@ -102,7 +97,8 @@ contract Mint is ReentrancyGuard, Pausable {
   //*~~~> Marketplace NFT that can be used to claim rewards and act as a DAO
   struct NFT {
     uint itemId;
-    address creator;
+    uint tokenId;
+    address contractAddress;
   }
   //*~~~> Tokens redeemed to create Marketplace NFTs
   struct RedemptionToken {
@@ -122,17 +118,18 @@ contract Mint is ReentrancyGuard, Pausable {
     _;
   }
 
-  constructor(address _role) {
+  constructor(address _role, uint[] memory count) {
     roleAdd =_role;
+    availableNfts = count;
   }
 
   //*~~~> Memory mappings
   mapping (uint256 => NFT) private _idToNft;
   mapping (uint256 => RedemptionToken) private _idToRedemption;
   mapping (address => uint) private _indexToRedemptionToken;
-
+  
   // Event declaration
-  event nftCreated(uint nftId, address creator);
+  event nftClaimed(uint nftId, address creator);
   event Received(address, uint);
 
   /*~~~>
@@ -144,14 +141,14 @@ contract Mint is ReentrancyGuard, Pausable {
   }
 
   /// @notice
-  /*~~~>
-    Function for re - setting the redemption token details
-  <~~~*/
+    /*~~~>
+      Function for re - setting the redemption token details
+    <~~~*/
   /// @dev
-  /*~~~>
-    uint _redeemAmount: Amount needed to redeem a NFT; 
-    address _contract: address of the redemption token;
-  <~~~*/
+    /*~~~>
+      uint _redeemAmount: Amount needed to redeem a NFT; 
+      address _contract: address of the redemption token;
+    <~~~*/
   function resetRedemptionToken(uint _redeemAmount, address _contract) public hasAdmin returns(bool){
     uint index = _indexToRedemptionToken[_contract];
     _idToRedemption[index] = RedemptionToken(_redeemAmount, _contract);
@@ -159,61 +156,92 @@ contract Mint is ReentrancyGuard, Pausable {
   }
   
   /// @notice
-  /*~~~> Function for setting new redemption tokens <~~~*/
+    /*~~~> Function for setting new redemption tokens <~~~*/
   /// @dev
-  /*~~~> 
-    uint amount: amount needed to redeem for creating new NFTs;
-    address _toke: address for the token;
-  <~~~*/
+    /*~~~> 
+      uint _redeemAmount: amount needed to redeem for creating new NFTs;
+      address _contract: address for the token;
+    <~~~*/
   /// @return Bool
-  function setNewRedemption(uint amount, address _toke) public hasAdmin returns(bool){
+  function setNewRedemption(uint _redeemAmount, address _contract) public hasAdmin returns(bool){
     _redemptionERC20.increment();
     uint id = _redemptionERC20.current();
-    _idToRedemption[id] = RedemptionToken(amount, _toke);
+    _idToRedemption[id] = RedemptionToken(_redeemAmount, _contract);
+    return true;
+  }
+
+  /// @notice
+  //*~~~> For updating the total NFT array with new tokenIds
+    ///@dev Can only be incremented!
+    //*~~~> uint _tokenIds: token Ids to add to the array
+  function setNftTokenIds(uint[] memory _tokenIds) public hasDevAdmin returns(bool){
+    for (uint i; i<_tokenIds.length; i++){
+      availableNfts.push(_tokenIds[i]);
+    }
+    totalNfts = availableNfts.length;
+    return true;
+  }
+
+  /// @notice
+    /*~~~>
+      Public interaction function for redeeming new NFTs by exchanging Tokens
+    <~~~*/
+  /// @dev
+    /*~~~>
+      uint id: index to the redemption token struct;e
+    <~~~*/
+  /// @return Bool
+  function redeemForNft(uint id) public whenNotPaused returns(bool){
+
+    address rewardsAddress =  IRoleProvider(roleAdd).fetchAddress(REWARDS);
+    address nftAddress = IRoleProvider(roleAdd).fetchAddress(NFTADD);
+
+    /// Bring in token Interface
+    RedemptionToken memory token = _idToRedemption[id];
+    IERC20 tokenContract = IERC20(token.contractAddress);
+    /// Check allowance
+    uint256 allowance = tokenContract.allowance(msg.sender, address(this));
+    require(allowance >= token.redeemAmount, "Check the token allowance");
+    /// Execute transfer
+    tokenContract.transferFrom(msg.sender, rewardsAddress, token.redeemAmount);
+    
+    ///Keeping track of total claimed
+    _nftsRedeemed.increment();
+    uint256 nftId = _nftsRedeemed.current();
+    /// Using the new ID as a nonce to generate a random tokenId from the available NFTs
+    uint tokenId = getQuasiRandom(nftId);
+    IERC721(nftAddress).safeTransferFrom(address(this), msg.sender, tokenId);
+    _idToNft[nftId] = NFT(nftId, tokenId, nftAddress);
+
+    bool depositSuccess = IRewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress);
+    require(depositSuccess);
+
+    bool hodlerSuccess = IRewardsController(rewardsAddress).createNftHodler(nftId);
+    require(hodlerSuccess);
+
+    emit nftClaimed(nftId, msg.sender);
     return true;
   }
 
   /// @notice
   /*~~~>
-  Public interaction function for creating new NFTs by exchanging Tokens
+    Internal fuction for fetching a random tokenId from unclaimed NFTs
   <~~~*/
-  /// @dev
-  /*~~~>
-    uint id: index to the redemption token struct;
-    uint amount: amount needed to redeem;
-    address to: address to mint the NFT to;
-  <~~~*/
-  /// @return Bool
-  function redeemForNft(uint id, uint amount, address to) public whenNotPaused returns(bool){
-
-    address rewardsAddress =  IRoleProvider(roleAdd).fetchAddress(REWARDS);
-    address nftAddress = IRoleProvider(roleAdd).fetchAddress(NFTADD);
-
-    RedemptionToken memory token = _idToRedemption[id];
-    require(amount >= token.redeemAmount);
-
-    IERC20 tokenContract = IERC20(token.contractAddress);
-    uint256 allowance = tokenContract.allowance(msg.sender, address(this));
-    require(allowance >= token.redeemAmount, "Check the token allowance");
-    tokenContract.transferFrom(msg.sender, rewardsAddress, token.redeemAmount);
-    
-    MarketNFT(nftAddress).safeMint(to);
-    _nftsCreated.increment();
-    uint256 nftId = _nftsCreated.current();
-    _idToNft[nftId] = NFT(nftId, msg.sender);
-    IRewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress);
-    IRewardsController(rewardsAddress).createNftHodler(nftId);
-
-    emit nftCreated(nftId, msg.sender);
-    return true;
-  }
-
+    function getQuasiRandom(uint nonce) internal returns(uint ramndomNumber){
+      uint quasiRandom = uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, nonce))) % totalNfts;
+      require(quasiRandom <= totalNfts);
+      /// Shifting the last ID to the selected id position
+      availableNfts[quasiRandom] = availableNfts[totalNfts-1];
+      /// Popping off last ID
+      availableNfts.pop();
+      totalNfts = availableNfts.length;
+      return quasiRandom;
+    }
 
   /// @notice
   /*~~~>
   Functions for retrieving memory items
   <~~~*/
-
   function fetchRedemptionTokens() public view returns (RedemptionToken[] memory) {
     uint itemCount = _redemptionERC20.current();
     RedemptionToken[] memory tokens = new RedemptionToken[](itemCount);
@@ -227,7 +255,7 @@ contract Mint is ReentrancyGuard, Pausable {
   }
 
   function fetchNFTsCreated() public view returns (NFT[] memory) {
-    uint itemCount = _nftsCreated.current();
+    uint itemCount = _nftsRedeemed.current();
     NFT[] memory nfts = new NFT[](itemCount);
     uint currentIndex;
     for (uint i; i < itemCount; i++) {
@@ -239,22 +267,8 @@ contract Mint is ReentrancyGuard, Pausable {
   }
 
   function fetchNFTsCreatedCount() public view returns (uint) {
-    uint itemCount = _nftsCreated.current();
+    uint itemCount = _nftsRedeemed.current();
     return itemCount;
-  }
-
-  function fetchNFTsCreatedByAddress(address creator) public view returns (NFT[] memory) {
-    uint itemCount = _nftsCreated.current();
-    NFT[] memory nfts = new NFT[](itemCount);
-    uint currentIndex;
-    for (uint i; i < itemCount; i++) {
-      if (_idToNft[i + 1].creator == creator) {
-        NFT storage currentItem = _idToNft[i + 1];
-         nfts[currentIndex] = currentItem;
-         currentIndex++;
-      }
-    }
-    return nfts;
   }
 
   ///@notice DEV operations for emergency functions
@@ -265,11 +279,23 @@ contract Mint is ReentrancyGuard, Pausable {
       _unpause();
   }
 
+  //*~~~> Fallback functions
   ///@notice
   /*~~~> External ETH transfer forwarded to role provider contract <~~~*/
   event FundsForwarded(uint value, address _from, address _to);
   receive() external payable {
     payable(roleAdd).transfer(msg.value);
       emit FundsForwarded(msg.value, msg.sender, roleAdd);
+  }
+  function onERC1155Received(address, address, uint256, uint256, bytes memory) public virtual returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+  function onERC721Received(
+      address, 
+      address, 
+      uint256, 
+      bytes calldata
+    )external pure returns(bytes4) {
+        return bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
   }
 }
