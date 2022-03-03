@@ -120,9 +120,8 @@ contract Mint is ReentrancyGuard, Pausable {
     _;
   }
 
-  constructor(address _role, uint[] memory count) {
+  constructor(address _role) {
     roleAdd =_role;
-    availableNfts = count;
   }
 
   //*~~~> Memory mappings
