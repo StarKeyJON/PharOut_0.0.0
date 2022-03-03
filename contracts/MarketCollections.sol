@@ -115,7 +115,7 @@ contract MarketCollections is ICollections {
   function editMarketplaceContract(
     bool[] memory restricted,
     address[] memory nftContract
-    ) public hasAdmin returns (bool) {
+    ) external hasAdmin returns (bool) {
     for (uint i; i<nftContract.length; i++) {
       address contract1 = nftContract[i];
       addressToRestricted[contract1] = restricted[i];
@@ -125,7 +125,7 @@ contract MarketCollections is ICollections {
   }
 
   //*~~~> sets approved tokens for offers
-  function setTokenList(bool[] calldata _canOffer, address[] calldata _token) public hasAdmin returns (bool) {
+  function setTokenList(bool[] calldata _canOffer, address[] calldata _token) external hasAdmin returns (bool) {
     for (uint i; i < _token.length; i++){
       addressToOfferable[_token[i]] = _canOffer[i];
     }
@@ -135,7 +135,7 @@ contract MarketCollections is ICollections {
   function canOfferToken(address token) public view returns(bool){
     return addressToOfferable[token];
   }
-  function canOfferToken(address[] memory tokens) public view returns(bool){
+  function canOfferToken(address[] memory tokens) external view returns(bool){
     for(uint256 i = 0; i < tokens.length; i++) {
       if (canOfferToken(tokens[i])) {
         return true;
@@ -148,7 +148,7 @@ contract MarketCollections is ICollections {
     require(nftContract != address(0), "Trying to check zero address");
     return addressToRestricted[nftContract];
   }
-  function isRestricted(address[] memory nftContracts) public view returns (bool) {
+  function isRestricted(address[] memory nftContracts) external view returns (bool) {
     for(uint256 i = 0; i < nftContracts.length; i++) {
       if (isRestricted(nftContracts[i])) {
         return true;

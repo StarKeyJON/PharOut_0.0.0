@@ -522,7 +522,7 @@ contract MarketTrades is ReentrancyGuard, Pausable, ITrades {
       uint[] memory tradeId,
       uint[] memory tokenId,
       uint[] memory listedId
-  ) public whenNotPaused nonReentrant returns(bool){
+  ) external whenNotPaused nonReentrant returns(bool){
     address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
     for(uint i; i<tradeId.length;i++) {
       uint j = tradeId[i];
@@ -768,10 +768,10 @@ contract MarketTrades is ReentrancyGuard, Pausable, ITrades {
     }
 
   ///@notice DEV operations for emergency functions
-  function pause() public hasDevAdmin {
+  function pause() external hasDevAdmin {
       _pause();
   }
-  function unpause() public hasDevAdmin {
+  function unpause() external hasDevAdmin {
       _unpause();
   }
 

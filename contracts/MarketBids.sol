@@ -217,7 +217,7 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
   );
 
   /*~~~> Allowing for upgradability of proxy addresses <~~~*/
-  function setRoleAdd(address _role) public hasAdmin returns(bool){
+  function setRoleAdd(address _role) external hasAdmin returns(bool){
     roleAdd = _role;
     return true;
   }
@@ -251,7 +251,7 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
     uint[] memory itemId,
     uint[] memory bidValue,
     address[] memory seller
-  ) public payable whenNotPaused nonReentrant returns(bool){
+  ) external payable whenNotPaused nonReentrant returns(bool){
     uint total;
     for (uint i;i < tokenId.length;i++){
       total = total.add(bidValue[i]);
@@ -311,7 +311,7 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
     uint[] memory value, 
     uint[] memory tokenId, 
     uint[] memory amount, 
-    address[] memory bidAddress) public payable whenNotPaused nonReentrant returns(bool){
+    address[] memory bidAddress) external payable whenNotPaused nonReentrant returns(bool){
 
     address collectionAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
     require(collectionAdd != address(0), "Collection address is not set in RoleProvider");
@@ -363,7 +363,7 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
     uint[] memory blindBidId, 
     uint[] memory tokenId,
     uint[] memory listedId, 
-    bool[] memory is1155) public whenNotPaused nonReentrant returns(bool){
+    bool[] memory is1155) external whenNotPaused nonReentrant returns(bool){
     
     address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
     uint balance = IERC721(marketAdd).balanceOf(msg.sender);
@@ -420,7 +420,7 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
   /// @return Bool
   function acceptBidForNft(
       uint[] memory bidId
-  ) public whenNotPaused nonReentrant returns (bool) {
+  ) external whenNotPaused nonReentrant returns (bool) {
 
     address marketNft = IRoleProvider(roleAdd).fetchAddress(NFT);
     address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
@@ -473,7 +473,7 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
       isBlind: if it is a blind blind (true);
     <~~~*/
   /// @return Bool
-  function withdrawBid(uint[] memory bidId, bool[] memory isBlind) public nonReentrant returns(bool){
+  function withdrawBid(uint[] memory bidId, bool[] memory isBlind) external nonReentrant returns(bool){
     for (uint i;i<bidId.length;i++){
       if (isBlind[i]){
         BlindBid memory bid = idToBlindBid[bidId[i]];
@@ -503,7 +503,7 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
       bidId: Id for the bid item to return;
     <~~~*/
   /// @return Bool
-  function refundBid(uint bidId) public nonReentrant hasContractAdmin returns(bool) {
+  function refundBid(uint bidId) external nonReentrant hasContractAdmin returns(bool) {
     Bid memory bid = idToNftBid[bidId];
     payable(bid.bidder).transfer(bid.bidValue);
     openStorage.push(bidId);
