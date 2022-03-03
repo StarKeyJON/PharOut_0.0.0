@@ -65,6 +65,8 @@ import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 import "./interfaces/IRoleProvider.sol";
+import "./interfaces/ICollections.sol";
+import "./interfaces/IRewardsController.sol";
 
 /*~~~>
 Interface declarations for upgradable contracts
@@ -72,11 +74,7 @@ Interface declarations for upgradable contracts
 interface IERC721 {
   function balanceOf(address owner) external view returns(uint);
   function setApprovalForAll(address operator, bool approved) external;
-}
-interface Collections {
-  function isRestricted(address nftContract) external returns(bool);
-}
-interface Offers {
+}interface Offers {
   function fetchOfferId(uint marketId) external returns(uint);
   function refundOffer(uint itemID, uint offerId) external;
 }
@@ -87,14 +85,6 @@ interface Bids {
 interface Trades {
   function fetchTradeId(uint marketId) external returns(uint);
   function refundTrade(uint itemId, uint tradeId) external;
-}
-
-interface RewardsController {
-  function createUser(address userAddress) external;
-  function splitRewards(uint split) external payable;
-  function setUser(bool canTrade, address userAddress) external;
-  function depositEthToDAO() external payable;
-  function getFee() external returns(uint);
 }
 interface IERC20 {
   function transfer(address to, uint value) external returns (bool);
@@ -215,7 +205,7 @@ contract NFTMarket is ReentrancyGuard, Pausable {
   /// @return platform fee
   function calcFee(uint256 _value) public returns (uint256)  {
       address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
-      uint fee = RewardsController(rewardsAdd).getFee();
+      uint fee = IRewardsController(rewardsAdd).getFee();
       uint256 percent = (_value.mul(fee)).div(10000);
       return percent;
     }
@@ -244,11 +234,11 @@ contract NFTMarket is ReentrancyGuard, Pausable {
     require(tokenId.length == nftContract.length);
     uint user = addressToUserBal[msg.sender];
     if (user==0) {
-        RewardsController(IRoleProvider(roleAdd).fetchAddress(REWARDS)).createUser(msg.sender);
+        IRewardsController(IRoleProvider(roleAdd).fetchAddress(REWARDS)).createUser(msg.sender);
       }
     uint tokenLen = tokenId.length;
     for (uint i;i<tokenLen;i++){
-        require(Collections(collsAdd).isRestricted(nftContract[i]) == false);
+        require(ICollections(collsAdd).isRestricted(nftContract[i]) == false);
         require(price[i] >= 1e14);
         uint itemId;
         uint len = openStorage.length;
@@ -329,7 +319,7 @@ contract NFTMarket is ReentrancyGuard, Pausable {
       //*~~~> Check to see if user has any remaining items listed after iteration
       if (addressToUserBal[msg.sender]==0){
         //*~~~> If not, remove them from claims allowance
-          RewardsController(rewardsAdd).setUser(false, msg.sender);
+          IRewardsController(rewardsAdd).setUser(false, msg.sender);
         }
       return true;
   }
@@ -365,7 +355,7 @@ contract NFTMarket is ReentrancyGuard, Pausable {
         uint256 saleFee = calcFee(it.price);
         uint256 userAmnt = it.price.sub(saleFee);
         // send saleFee to rewards controller
-        RewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+        IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
         // send (listed amount - saleFee) to seller
         payable(it.seller).transfer(userAmnt);
       }
@@ -397,7 +387,7 @@ contract NFTMarket is ReentrancyGuard, Pausable {
       openStorage.push(itemId[i]);
       addressToUserBal[it.seller] = addressToUserBal[it.seller]-1;
       if (addressToUserBal[it.seller]==0){
-        RewardsController(rewardsAdd).setUser(false, it.seller);
+        IRewardsController(rewardsAdd).setUser(false, it.seller);
       }
     }
     return true;

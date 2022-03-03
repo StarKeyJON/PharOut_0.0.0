@@ -65,18 +65,15 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 import "./interfaces/IRoleProvider.sol";
+import "./interfaces/ICollections.sol";
+import "./interfaces/IRewardsController.sol";
 
 /*~~~>
 Interface declarations for upgradable contracts
 <~~~*/
 interface NFTMkt {
   function transferNftForSale(address receiver, uint itemId) external;
-}
-interface RewardsController {
-  function depositERC20Rewards(uint amount, address tokenAdd) external;
-  function getFee() external returns(uint);
-}
-interface IERC20 {
+}interface IERC20 {
   function balanceOf(address account) external view returns (uint256);
   function allowance(address owner, address spender) external view returns (uint256);
   function transfer(address recipient, uint256 amount) external returns (bool);
@@ -90,10 +87,6 @@ interface Bids {
 interface Trades {
   function fetchTradeId(uint marketId) external returns(uint);
   function refundTrade(uint itemId, uint tradeId) external;
-}
-interface Collections {
-  function isRestricted(address nftContract) external returns(bool);
-  function canOfferToken(address token) external returns(bool);
 }
 
 contract MarketOffers is ReentrancyGuard, Pausable {
@@ -240,7 +233,7 @@ contract MarketOffers is ReentrancyGuard, Pausable {
   /// @return platform fee
   function calcFee(uint256 _value) public returns (uint256)  {
       address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
-      uint fee = RewardsController(rewardsAdd).getFee();
+      uint fee = IRewardsController(rewardsAdd).getFee();
       uint256 percent = (_value.mul(fee)).div(10000);
       return percent;
     }
@@ -267,7 +260,7 @@ contract MarketOffers is ReentrancyGuard, Pausable {
     address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
 
       for (uint i; i< itemId.length; i++) {
-      require(Collections(collsAdd).canOfferToken(tokenCont[i]),"Unknown token!");
+      require(ICollections(collsAdd).canOfferToken(tokenCont[i]),"Unknown token!");
       require (amount[i] > 0,"Amount needs to be > 0");
       
       IERC20 tokenContract = IERC20(tokenCont[i]);
@@ -323,7 +316,7 @@ contract MarketOffers is ReentrancyGuard, Pausable {
 
       uint256 allowance = IERC20(tokenCont[i]).allowance(msg.sender, address(this));
       require(allowance >= amount[i], "Check the token allowance");
-      require(Collections(collsAdd).isRestricted(collection[i]) == false);
+      require(ICollections(collsAdd).isRestricted(collection[i]) == false);
       IERC20(tokenCont[i]).transferFrom(msg.sender, (address(this)), amount[i]);
 
       uint offerId;
@@ -385,7 +378,7 @@ contract MarketOffers is ReentrancyGuard, Pausable {
         uint256 saleFee = calcFee(offer.amount);
         uint256 userAmnt = offer.amount.sub(saleFee);
         /// send (saleFee) to rewards contract
-        RewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
+        IRewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
         (tokenContract).transfer(rewardsAdd, saleFee);
          /// send (offerAmount - saleFee) to user  
         (tokenContract).transfer(payable(msg.sender), userAmnt);
@@ -436,7 +429,7 @@ contract MarketOffers is ReentrancyGuard, Pausable {
         /// Calculate fee and send to rewards contract
         uint256 saleFee = calcFee(offer.amount);
         uint256 userAmnt = offer.amount.sub(saleFee);
-        RewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
+        IRewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
         (tokenContract).transfer(rewardsAdd, saleFee);
         (tokenContract).transfer(payable(offer.seller), userAmnt);
       } else {

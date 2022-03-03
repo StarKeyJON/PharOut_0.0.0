@@ -65,6 +65,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 
 import "./interfaces/IRoleProvider.sol";
 import "./interfaces/IRewardsController.sol";
+import "./interfaces/ICollections.sol";
 
 /*~~~>
 Interface declarations for upgradable contracts
@@ -84,10 +85,6 @@ interface Trades {
   function fetchTradeId(uint marketId) external returns(uint);
   function refundTrade(uint itemId, uint tradeId) external;
 }
-interface Collections {
-  function isRestricted(address nftContract) external returns(bool);
-}
-
 contract MarketBids is ReentrancyGuard, Pausable {
   using SafeMath for uint;
   using Counters for Counters.Counter;
@@ -327,13 +324,13 @@ contract MarketBids is ReentrancyGuard, Pausable {
 
     address collectionAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
     require(collectionAdd != address(0), "Collection address is not set in RoleProvider");
-    
+    require(ICollections(collectionAdd).isRestricted(bidAddress) == false);
+
     uint total;
     for (uint i;i<bidAddress.length;i++){
       total = total.add(value[i]);
       require(value[i] > 1e12, "Must be greater than 1e12 gwei.");
       require(bidAddress[i] != address(0), "Inputting zero address to bid on");
-      require(Collections(collectionAdd).isRestricted(bidAddress[i]) == false);
       uint bidId;
       uint len = blindOpenStorage.length;
       if (len>=1){

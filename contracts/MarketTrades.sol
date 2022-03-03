@@ -65,6 +65,7 @@ import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 import "./interfaces/IRoleProvider.sol";
+import "./interfaces/ICollections.sol";
 
 /*~~~>
 Interface declarations for upgradable contracts
@@ -79,9 +80,6 @@ interface Offers {
 interface Bids {
   function fetchBidId(uint marketId) external returns(uint);
   function refundBid(uint bidId) external;
-}
-interface Collections {
-  function isRestricted(address nftContract) external returns(bool);
 }
 
 contract MarketTrades is ReentrancyGuard, Pausable {
@@ -233,8 +231,9 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       address[] memory nftContract,
       address[] memory seller
   ) public whenNotPaused nonReentrant returns(bool){
+    require(ICollections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).isRestricted(nftContract) == false);
+
     for (uint i;i<itemId.length;i++) {
-      require(Collections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).isRestricted(nftContract[i]) == false);
       uint tradeId;
       if (openStorage.length>=1) {
         tradeId = openStorage[openStorage.length-1];
@@ -298,6 +297,7 @@ contract MarketTrades is ReentrancyGuard, Pausable {
   ) public whenNotPaused nonReentrant{
 
     address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
+    require(ICollections(collsAdd).isRestricted(nftContract) == false);
 
     for (uint i;i<tokenId.length;i++) {
       uint tradeId;
@@ -308,7 +308,6 @@ contract MarketTrades is ReentrancyGuard, Pausable {
         _blindTrades.increment();
         tradeId = _blindTrades.current();
       }
-      require(Collections(collsAdd).isRestricted(nftContract[i]) == false);
       if (is1155[i]){
         IERC1155(nftContract[i]).safeTransferFrom(msg.sender, address(this), tokenId[i], amount1155[i], "");
       } else {

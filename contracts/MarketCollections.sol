@@ -66,26 +66,27 @@ pragma solidity  >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "./interfaces/IRoleProvider.sol";
+import "./interfaces/ICollections.sol";
 
-contract MarketCollections {
+contract MarketCollections is ICollections {
 
   //*~~~> Roles for designated accessibility
   bytes32 public constant PROXY_ROLE = keccak256("PROXY_ROLE"); 
   bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE"); 
   string Mess = "DOES NOT HAVE ADMIN ROLE";
   address public roleAdd;
-  
-  constructor(address _role) {
-    roleAdd = _role;
-  }
-  modifier hasAdmin(){
-    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), Mess);
-    _;
-  }
-  modifier hasDevAdmin(){
-    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), Mess);
-    _;
-  }
+    
+    constructor(address _role) {
+      roleAdd = _role;
+    }
+    modifier hasAdmin(){
+      require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), Mess);
+      _;
+    }
+    modifier hasDevAdmin(){
+      require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), Mess);
+      _;
+     }
 
 
   //*~~~> Memory array of all listed Market Collections
@@ -134,11 +135,26 @@ contract MarketCollections {
   function canOfferToken(address token) public view returns(bool){
     return addressToOfferable[token];
   }
+  function canOfferToken(address[] memory tokens) public view returns(bool){
+    for(uint256 i = 0; i < tokens.length; i++) {
+      if (canOfferToken(tokens[i])) {
+        return true;
+      }
+    }
+    return false;  }
 
   // checks if the collection is restricted from trading, returns false if not
   function isRestricted(address nftContract) public view returns (bool) {
     require(nftContract != address(0), "Trying to check zero address");
     return addressToRestricted[nftContract];
+  }
+  function isRestricted(address[] memory nftContracts) public view returns (bool) {
+    for(uint256 i = 0; i < nftContracts.length; i++) {
+      if (isRestricted(nftContracts[i])) {
+        return true;
+      }
+    }
+    return false;
   }
 
   ///@notice
