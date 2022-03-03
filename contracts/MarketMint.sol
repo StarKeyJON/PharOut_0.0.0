@@ -232,12 +232,13 @@ contract Mint is ReentrancyGuard, Pausable {
     function getQuasiRandom(uint nonce) internal returns(uint ramndomNumber){
       uint quasiRandom = uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, nonce))) % nftsRemaining;
       require(quasiRandom <= nftsRemaining);
+      uint newId = availableNfts[quasiRandom];
       /// Shifting the last ID to the selected id position
       availableNfts[quasiRandom] = availableNfts[nftsRemaining-1];
       /// Popping off last ID
       availableNfts.pop();
       nftsRemaining = availableNfts.length;
-      return quasiRandom;
+      return newId;
     }
 
   /// @notice
