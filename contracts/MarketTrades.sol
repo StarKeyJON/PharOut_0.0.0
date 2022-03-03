@@ -55,7 +55,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  >=0.8.0 <0.9.0;
+pragma solidity  0.8.12;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -64,29 +64,16 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
+import "./interfaces/ICollections.sol";
+import "./interfaces/IEscrow.sol";
+import "./interfaces/INFTMarket.sol";
+import "./interfaces/IRoleProvider.sol";
+
 /*~~~>
 Interface declarations for upgradable contracts
 <~~~*/
-interface NFTMkt {
-    function transferNftForSale(address receiver, uint itemId) external;
-}
-interface RoleProvider {
-  function hasTheRole(bytes32 role, address _address) external returns(bool);
-  function fetchAddress(bytes32 _var) external returns(address);
-}
-interface Offers {
-  function fetchOfferId(uint marketId) external returns(uint);
-  function refundOffer(uint itemID, uint offerId) external;
-}
-interface Bids {
-  function fetchBidId(uint marketId) external returns(uint);
-  function refundBid(uint bidId) external;
-}
-interface Collections {
-  function isRestricted(address nftContract) external returns(bool);
-}
 
-contract MarketTrades is ReentrancyGuard, Pausable {
+contract MarketTrades is ReentrancyGuard, Pausable, ITrades {
   using Counters for Counters.Counter;
   
   //*~~~> counter increments NFTs Trade Offers
@@ -98,15 +85,15 @@ contract MarketTrades is ReentrancyGuard, Pausable {
   bytes32 public constant CONTRACT_ROLE = keccak256("CONTRACT_ROLE");
   bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE");
   modifier hasAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
     _;
   }
   modifier hasContractAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(CONTRACT_ROLE, msg.sender), "DOES NOT HAVE CONTRACT ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(CONTRACT_ROLE, msg.sender), "DOES NOT HAVE CONTRACT ROLE");
     _;
   }
   modifier hasDevAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
     _;
   }
 
@@ -235,8 +222,9 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       address[] memory nftContract,
       address[] memory seller
   ) public whenNotPaused nonReentrant returns(bool){
+    require(ICollections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).isRestricted(nftContract) == false);
+
     for (uint i;i<itemId.length;i++) {
-      require(Collections(RoleProvider(roleAdd).fetchAddress(COLLECTION)).isRestricted(nftContract[i]) == false);
       uint tradeId;
       if (openStorage.length>=1) {
         tradeId = openStorage[openStorage.length-1];
@@ -299,7 +287,8 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       address[] memory wantContract
   ) public whenNotPaused nonReentrant{
 
-    address collsAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
+    address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
+    require(ICollections(collsAdd).isRestricted(nftContract) == false);
 
     for (uint i;i<tokenId.length;i++) {
       uint tradeId;
@@ -310,7 +299,6 @@ contract MarketTrades is ReentrancyGuard, Pausable {
         _blindTrades.increment();
         tradeId = _blindTrades.current();
       }
-      require(Collections(collsAdd).isRestricted(nftContract[i]) == false);
       if (is1155[i]){
         IERC1155(nftContract[i]).safeTransferFrom(msg.sender, address(this), tokenId[i], amount1155[i], "");
       } else {
@@ -399,7 +387,7 @@ contract MarketTrades is ReentrancyGuard, Pausable {
     tradeId: trade item id for this internal storage;
   <~~~*/
   ///@return Bool
-  function refundTrade(uint itemId, uint tradeId) public hasContractAdmin returns(bool){
+  function refundTrade(uint itemId, uint tradeId) public hasContractAdmin returns (bool){
     Trade memory trade = idToNftTrade[tradeId];
     if ( trade.is1155 ){
       IERC1155(trade.nftCont).safeTransferFrom(address(this), trade.trader, trade.tokenId, trade.amount1155, "");
@@ -464,9 +452,9 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       uint[] calldata tradeId
   ) public nonReentrant returns(bool){
     
-    address marketAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
-    address bidsAdd = RoleProvider(roleAdd).fetchAddress(BIDS);
-    address offersAdd = RoleProvider(roleAdd).fetchAddress(OFFERS);
+    address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
+    address bidsAdd = IRoleProvider(roleAdd).fetchAddress(BIDS);
+    address offersAdd = IRoleProvider(roleAdd).fetchAddress(OFFERS);
     for(uint i; i<itemId.length;i++) {
       Trade memory trade = idToNftTrade[tradeId[i]];
       require(msg.sender == trade.seller,"Not Owner");
@@ -476,17 +464,17 @@ contract MarketTrades is ReentrancyGuard, Pausable {
         transferERC721(trade.nftCont, trade.seller, trade.tokenId);
       }
       /*~~~> Check for the case where there is a trade and refund it. <~~~*/
-      uint offerId = Offers(offersAdd).fetchOfferId(itemId[i]);
+      uint offerId = IOffers(offersAdd).fetchOfferId(itemId[i]);
       if (offerId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the NFT offered for trade
-        Offers(offersAdd).refundOffer(itemId[i], offerId);
+        IOffers(offersAdd).refundOffer(itemId[i], offerId);
       }
-      uint bidId = Bids(bidsAdd).fetchBidId(itemId[i]);
+      uint bidId = IBids(bidsAdd).fetchBidId(itemId[i]);
       if (bidId>0) {
       /*~~~> Kill bid and refund bidValue <~~~*/
         //~~~> Call the contract to refund the ETH offered for a bid
-        Bids(bidsAdd).refundBid(bidId);
+        IBids(bidsAdd).refundBid(bidId);
       }
        openStorage.push(tradeId[i]);
        marketIdToTradeId[itemId[i]] = 0;
@@ -504,7 +492,7 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       for(uint j; j<trades.length;j++){
         _refundTradeFromSale(trades[i].itemId, trades[i].tradeId);
       }
-       NFTMkt(marketAdd).transferNftForSale(trade.trader, itemId[i]);
+       INFTMarket(marketAdd).transferNftForSale(trade.trader, itemId[i]);
        emit TradeAccepted(
            trade.is1155,
            false,
@@ -535,7 +523,7 @@ contract MarketTrades is ReentrancyGuard, Pausable {
       uint[] memory tokenId,
       uint[] memory listedId
   ) public whenNotPaused nonReentrant returns(bool){
-    address marketAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
+    address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
     for(uint i; i<tradeId.length;i++) {
       uint j = tradeId[i];
       BlindTrade memory trade = idToBlindTrade[j];
@@ -547,14 +535,14 @@ contract MarketTrades is ReentrancyGuard, Pausable {
         if(listedId[i]==0){
           IERC1155(trade.wantCont).safeTransferFrom(address(msg.sender), trade.trader, tokenId[i], trade.amount1155, "");
         } else {
-          NFTMkt(marketAdd).transferNftForSale(trade.trader, listedId[i]);
+          INFTMarket(marketAdd).transferNftForSale(trade.trader, listedId[i]);
         }
       } else {
         require(IERC721(trade.nftCont).ownerOf(tokenId[i]) == msg.sender, "Not the token owner!");
         if(listedId[i]==0){
           transferERC721(trade.nftCont, msg.sender, trade.tokenId);
         } else {
-          NFTMkt(marketAdd).transferNftForSale(trade.trader, listedId[i]);
+          INFTMarket(marketAdd).transferNftForSale(trade.trader, listedId[i]);
         }
       }
        blindOpenStorage.push(tradeId[i]);

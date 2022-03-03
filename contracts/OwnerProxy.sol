@@ -55,10 +55,14 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  >=0.8.0 <0.9.0;
+pragma solidity  0.8.12;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+
+import "./interfaces/ICollections.sol";
+import "./interfaces/IRoleProvider.sol";
+import "./interfaces/IRewardsController.sol";
 
 ///@notice
 /*~~~>
@@ -68,17 +72,12 @@ interface NFT {
   function grantRole(bytes32 role, address account) external;
   function revokeRole(bytes32 role, address account) external;
 }
-interface Collections {
-  function editMarketplaceContract( bool[] memory restricted, string[] memory name, address[] memory nftContract) external;
-}
 interface MarketMint {
   function setDeployAmnt(uint _deplyAmnt) external;
   function setNewRedemption(uint amount, address _toke) external;
   function resetRedemptionToken(uint64 _redeemAmount, address _contract) external;
 }
-interface RoleProvider {
-  function fetchAddress(bytes32 _var) external returns(address);
-  function setMarketAdd(address _mrktAdd) external returns(bool);
+interface RoleProvider is IRoleProvider {
   function setMarketMintAdd(address _mintAdd) external returns(bool);
   function setNftAdd(address _nftAdd) external returns(bool);
   function setCollectionsAdd(address _collAdd) external returns(bool);
@@ -92,9 +91,7 @@ interface RoleProvider {
   function setDevSigAddress(address _sig) external returns(bool);
   function hasTheRole(bytes32 role, address _address) external returns(bool);
   function setAddressGivenBytes(bytes32 key, address _sig) external returns(bool);
-}
-interface RewardsController {
-  function setFee(uint _fee) external;
+  function setMarketAdd(address _mrktAdd) external returns(bool);
 }
 
 contract OwnerProxy is ReentrancyGuard, Pausable {
@@ -148,7 +145,7 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
   <~~~*/
   function setFee(uint _fee) public hasAdmin returns (bool) {
     address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
-    RewardsController(rewardsAdd).setFee(_fee);
+    IRewardsController(rewardsAdd).setFee(_fee);
     return true;
   }
 
@@ -216,9 +213,9 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
   /*~~~>
     For controlling the Collection contract
   <~~~*/
-  function editMarketplaceContract(bool[] calldata restricted, string[] calldata name, address[] calldata nftContract) hasAdmin public returns(bool){
+  function editMarketplaceContract(bool[] calldata restricted, address[] calldata nftContract) hasAdmin public returns(bool){
     address collectionsAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
-    Collections(collectionsAdd).editMarketplaceContract(restricted, name, nftContract);
+    ICollections(collectionsAdd).editMarketplaceContract(restricted, nftContract);
     return true;
   }
 

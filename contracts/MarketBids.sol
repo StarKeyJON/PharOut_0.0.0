@@ -55,7 +55,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  >=0.8.0 <0.9.0;
+pragma solidity 0.8.12;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -63,37 +63,20 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
+import "./interfaces/ICollections.sol";
+import "./interfaces/IEscrow.sol";
+import "./interfaces/INFTMarket.sol";
+import "./interfaces/IRoleProvider.sol";
+import "./interfaces/IRewardsController.sol";
+
 /*~~~>
 Interface declarations for upgradable contracts
 <~~~*/
-interface NFTMkt {
-  function transferNftForSale(address receiver, uint itemId) external;
-}
 interface IERC721 {
   function ownerOf(uint tokenId) external view returns(address);
   function balanceOf(address owner) external view returns(uint);
 }
-interface RewardsController {
-  function splitRewards(uint split) external payable;
-  function getFee() external returns(uint);
-}
-interface RoleProvider {
-  function hasTheRole(bytes32 role, address _address) external returns(bool);
-  function fetchAddress(bytes32 _var) external returns(address);
-}
-interface Offers {
-  function fetchOfferId(uint marketId) external returns(uint);
-  function refundOffer(uint itemID, uint offerId) external;
-}
-interface Trades {
-  function fetchTradeId(uint marketId) external returns(uint);
-  function refundTrade(uint itemId, uint tradeId) external;
-}
-interface Collections {
-  function isRestricted(address nftContract) external returns(bool);
-}
-
-contract MarketBids is ReentrancyGuard, Pausable {
+contract MarketBids is ReentrancyGuard, Pausable, IBids {
   using SafeMath for uint;
   using Counters for Counters.Counter;
 
@@ -131,15 +114,15 @@ contract MarketBids is ReentrancyGuard, Pausable {
   bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE");
 
   modifier hasAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
     _;
   }
   modifier hasContractAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(CONTRACT_ROLE, msg.sender), "DOES NOT HAVE CONTRACT ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(CONTRACT_ROLE, msg.sender), "DOES NOT HAVE CONTRACT ROLE");
     _;
   }
   modifier hasDevAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
     _;
   }
 
@@ -247,8 +230,8 @@ contract MarketBids is ReentrancyGuard, Pausable {
     <~~~*/
   /// @return platform fee
   function calcFee(uint256 _value) public returns (uint256) {
-      address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
-      uint fee = RewardsController(rewardsAdd).getFee();
+      address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
+      uint fee = IRewardsController(rewardsAdd).getFee();
       uint256 percent = (_value.mul(fee)).div(10000);
       return percent;
     }
@@ -330,15 +313,15 @@ contract MarketBids is ReentrancyGuard, Pausable {
     uint[] memory amount, 
     address[] memory bidAddress) public payable whenNotPaused nonReentrant returns(bool){
 
-    address collectionAdd = RoleProvider(roleAdd).fetchAddress(COLLECTION);
+    address collectionAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
     require(collectionAdd != address(0), "Collection address is not set in RoleProvider");
-    
+    require(ICollections(collectionAdd).isRestricted(bidAddress) == false);
+
     uint total;
     for (uint i;i<bidAddress.length;i++){
       total = total.add(value[i]);
       require(value[i] > 1e12, "Must be greater than 1e12 gwei.");
       require(bidAddress[i] != address(0), "Inputting zero address to bid on");
-      require(Collections(collectionAdd).isRestricted(bidAddress[i]) == false);
       uint bidId;
       uint len = blindOpenStorage.length;
       if (len>=1){
@@ -382,7 +365,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
     uint[] memory listedId, 
     bool[] memory is1155) public whenNotPaused nonReentrant returns(bool){
     
-    address marketAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
+    address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
     uint balance = IERC721(marketAdd).balanceOf(msg.sender);
 
     for (uint i;i<blindBidId.length;i++){
@@ -392,13 +375,13 @@ contract MarketBids is ReentrancyGuard, Pausable {
           require(tokenId[i]==bid.tokenId,"Wrong item!");
         }
         if(balance<1){
-          address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
+          address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
           require(rewardsAdd != address(0), "Rewards Address not set in Role Provider");
           /*~~~> Calculating the platform fee <~~~*/
           uint256 saleFee = calcFee(bid.bidValue);
           uint256 userAmnt = bid.bidValue.sub(saleFee);
           /// send saleFee to rewards controller
-          RewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+          IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
           /// send (bidValue - saleFee) to user
           payable(msg.sender).transfer(userAmnt);
         } else {
@@ -408,7 +391,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
         //*~~~> Disallow if the msg.sender is not the token owner
         require(IERC721(bid.collectionBid).ownerOf(tokenId[i]) == msg.sender, "Not the token owner!");
         if(listedId[i]>0){
-            NFTMkt(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
+            INFTMarket(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
           } else {
             transferFromERC721(bid.collectionBid, tokenId[i], bid.bidder);
           }
@@ -418,7 +401,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
         if(listedId[i]==0){
           IERC1155(bid.collectionBid).safeTransferFrom(address(msg.sender), bid.bidder, tokenId[i], bid.amount, "");
         } else {
-          NFTMkt(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
+          INFTMarket(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
         }
       }
       blindOpenStorage.push(blindBidId[i]);
@@ -439,11 +422,11 @@ contract MarketBids is ReentrancyGuard, Pausable {
       uint[] memory bidId
   ) public whenNotPaused nonReentrant returns (bool) {
 
-    address marketNft = RoleProvider(roleAdd).fetchAddress(NFT);
-    address marketAdd = RoleProvider(roleAdd).fetchAddress(MARKET);
-    address offersAdd = RoleProvider(roleAdd).fetchAddress(OFFERS);
-    address tradesAdd = RoleProvider(roleAdd).fetchAddress(TRADES);
-    address rewardsAdd = RoleProvider(roleAdd).fetchAddress(REWARDS);
+    address marketNft = IRoleProvider(roleAdd).fetchAddress(NFT);
+    address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
+    address offersAdd = IRoleProvider(roleAdd).fetchAddress(OFFERS);
+    address tradesAdd = IRoleProvider(roleAdd).fetchAddress(TRADES);
+    address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
 
     uint balance = IERC721(marketNft).balanceOf(msg.sender);
     for (uint i; i<bidId.length; i++){
@@ -454,29 +437,29 @@ contract MarketBids is ReentrancyGuard, Pausable {
           uint256 saleFee = calcFee(bid.bidValue);
           uint256 userAmnt = bid.bidValue.sub(saleFee);
           /// send saleFee to rewards controller
-          RewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+          IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
           /// send (bidValue - saleFee) to user
           payable(bid.seller).transfer(userAmnt);
       } else {
         payable(bid.seller).transfer(bid.bidValue);
       }
       /*~~~> Check for the case where there is a trade and refund it. <~~~*/
-      uint offerId = Offers(offersAdd).fetchOfferId(bid.itemId);
+      uint offerId = IOffers(offersAdd).fetchOfferId(bid.itemId);
       if (offerId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the NFT offered for trade
-        Offers(offersAdd).refundOffer(bid.itemId, offerId);
+        IOffers(offersAdd).refundOffer(bid.itemId, offerId);
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
-      uint tradeId = Trades(tradesAdd).fetchTradeId(bid.itemId);
+      uint tradeId = ITrades(tradesAdd).fetchTradeId(bid.itemId);
       if (tradeId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the ERC20 offered for trade
-        Trades(tradesAdd).refundTrade(bid.itemId, tradeId);
+        ITrades(tradesAdd).refundTrade(bid.itemId, tradeId);
       }
       openStorage.push(bidId[i]);
       idToNftBid[bidId[i]] = Bid(0, 0, bidId[i], 0, 0, payable(address(0x0)), payable(address(0x0)));
-      NFTMkt(marketAdd).transferNftForSale(address(bid.bidder), bid.itemId);
+      INFTMarket(marketAdd).transferNftForSale(address(bid.bidder), bid.itemId);
       emit BidAccepted(bid.itemId, bidId[i], bid.bidValue, bid.bidder, bid.seller);
     }
   return true;
@@ -490,7 +473,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
       isBlind: if it is a blind blind (true);
     <~~~*/
   /// @return Bool
-  function withdrawBid(uint[] memory bidId, bool[] memory isBlind) public  nonReentrant returns(bool){
+  function withdrawBid(uint[] memory bidId, bool[] memory isBlind) public nonReentrant returns(bool){
     for (uint i;i<bidId.length;i++){
       if (isBlind[i]){
         BlindBid memory bid = idToBlindBid[bidId[i]];

@@ -55,12 +55,15 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity 0.8.12;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+
+import "./interfaces/IRoleProvider.sol";
+import "./interfaces/IRewardsController.sol";
 
 /*~~~>
 Interface declarations for upgradable contracts
@@ -79,15 +82,6 @@ interface IERC20 {
   function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
   event Transfer(address indexed from, address indexed to, uint256 value);
   event Approval(address indexed owner, address indexed spender, uint256 value);
-}
-interface RoleProvider {
-  function hasTheRole(bytes32 role, address _address) external returns(bool);
-  function fetchAddress(bytes32 _var) external returns(address);
-}
-interface RewardsController {
-  function createNftHodler(uint tokenId) external;
-  function depositEthToDAO() payable external;
-  function depositERC20Rewards(uint amount, address tokenAddress) external;
 }
 contract Mint is ReentrancyGuard, Pausable {
   using SafeMath for uint;
@@ -120,11 +114,11 @@ contract Mint is ReentrancyGuard, Pausable {
   bytes32 public constant PROXY_ROLE = keccak256("PROXY_ROLE"); 
   bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE");
   modifier hasAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
     _;
   }
   modifier hasDevAdmin(){
-    require(RoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
+    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
     _;
   }
 
@@ -192,8 +186,8 @@ contract Mint is ReentrancyGuard, Pausable {
   /// @return Bool
   function redeemForNft(uint id, uint amount, address to) public whenNotPaused returns(bool){
 
-    address rewardsAddress =  RoleProvider(roleAdd).fetchAddress(REWARDS);
-    address nftAddress = RoleProvider(roleAdd).fetchAddress(NFTADD);
+    address rewardsAddress =  IRoleProvider(roleAdd).fetchAddress(REWARDS);
+    address nftAddress = IRoleProvider(roleAdd).fetchAddress(NFTADD);
 
     RedemptionToken memory token = _idToRedemption[id];
     require(amount >= token.redeemAmount);
@@ -207,8 +201,8 @@ contract Mint is ReentrancyGuard, Pausable {
     _nftsCreated.increment();
     uint256 nftId = _nftsCreated.current();
     _idToNft[nftId] = NFT(nftId, msg.sender);
-    RewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress);
-    RewardsController(rewardsAddress).createNftHodler(nftId);
+    IRewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress);
+    IRewardsController(rewardsAddress).createNftHodler(nftId);
 
     emit nftCreated(nftId, msg.sender);
     return true;
