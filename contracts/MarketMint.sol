@@ -86,8 +86,10 @@ contract Mint is ReentrancyGuard, Pausable {
   Counters.Counter private _redemptionERC20;
 
   // For keeping track of marketplace NFT counts as more are created and redeemed
-  uint totalNfts;
+  uint public totalNfts;
+  uint public nftsRemaining;
   uint[] public availableNfts;
+
   address public roleAdd;
 
   bytes32 public constant NFTADD = keccak256("NFT");
@@ -135,7 +137,7 @@ contract Mint is ReentrancyGuard, Pausable {
   /*~~~>
     Restricted access functions for mutable state variables  
   <~~~*/
-  function setRoleAdd(address _role) public hasAdmin returns(bool){
+  function setRoleAdd(address _role) external hasAdmin returns(bool){
     roleAdd = _role;
     return true;
   }
@@ -149,7 +151,7 @@ contract Mint is ReentrancyGuard, Pausable {
       uint _redeemAmount: Amount needed to redeem a NFT; 
       address _contract: address of the redemption token;
     <~~~*/
-  function resetRedemptionToken(uint _redeemAmount, address _contract) public hasAdmin returns(bool){
+  function resetRedemptionToken(uint _redeemAmount, address _contract) external hasAdmin returns(bool){
     uint index = _indexToRedemptionToken[_contract];
     _idToRedemption[index] = RedemptionToken(_redeemAmount, _contract);
     return true;
@@ -163,7 +165,7 @@ contract Mint is ReentrancyGuard, Pausable {
       address _contract: address for the token;
     <~~~*/
   /// @return Bool
-  function setNewRedemption(uint _redeemAmount, address _contract) public hasAdmin returns(bool){
+  function setNewRedemption(uint _redeemAmount, address _contract) external hasAdmin returns(bool){
     _redemptionERC20.increment();
     uint id = _redemptionERC20.current();
     _idToRedemption[id] = RedemptionToken(_redeemAmount, _contract);
@@ -174,11 +176,12 @@ contract Mint is ReentrancyGuard, Pausable {
   //*~~~> For updating the total NFT array with new tokenIds
     ///@dev Can only be incremented!
     //*~~~> uint _tokenIds: token Ids to add to the array
-  function setNftTokenIds(uint[] memory _tokenIds) public hasDevAdmin returns(bool){
-    for (uint i; i<_tokenIds.length; i++){
-      availableNfts.push(_tokenIds[i]);
+  function setNftTokenIds(uint _amount) external hasDevAdmin returns(bool){
+    for (uint i; i<_amount; i++){
+      totalNfts = totalNfts+1;
+      availableNfts.push(totalNfts);
     }
-    totalNfts = availableNfts.length;
+    nftsRemaining = availableNfts.length;
     return true;
   }
 
@@ -191,7 +194,7 @@ contract Mint is ReentrancyGuard, Pausable {
       uint id: index to the redemption token struct;e
     <~~~*/
   /// @return Bool
-  function redeemForNft(uint id) public whenNotPaused returns(bool){
+  function redeemForNft(uint id) external whenNotPaused returns(bool){
 
     address rewardsAddress =  IRoleProvider(roleAdd).fetchAddress(REWARDS);
     address nftAddress = IRoleProvider(roleAdd).fetchAddress(NFTADD);
@@ -228,13 +231,13 @@ contract Mint is ReentrancyGuard, Pausable {
     Internal fuction for fetching a random tokenId from unclaimed NFTs
   <~~~*/
     function getQuasiRandom(uint nonce) internal returns(uint ramndomNumber){
-      uint quasiRandom = uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, nonce))) % totalNfts;
-      require(quasiRandom <= totalNfts);
+      uint quasiRandom = uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, nonce))) % nftsRemaining;
+      require(quasiRandom <= nftsRemaining);
       /// Shifting the last ID to the selected id position
-      availableNfts[quasiRandom] = availableNfts[totalNfts-1];
+      availableNfts[quasiRandom] = availableNfts[nftsRemaining-1];
       /// Popping off last ID
       availableNfts.pop();
-      totalNfts = availableNfts.length;
+      nftsRemaining = availableNfts.length;
       return quasiRandom;
     }
 
@@ -242,7 +245,7 @@ contract Mint is ReentrancyGuard, Pausable {
   /*~~~>
   Functions for retrieving memory items
   <~~~*/
-  function fetchRedemptionTokens() public view returns (RedemptionToken[] memory) {
+  function fetchRedemptionTokens() external view returns (RedemptionToken[] memory) {
     uint itemCount = _redemptionERC20.current();
     RedemptionToken[] memory tokens = new RedemptionToken[](itemCount);
     uint currentIndex;
@@ -254,7 +257,7 @@ contract Mint is ReentrancyGuard, Pausable {
     return tokens;
   }
 
-  function fetchNFTsCreated() public view returns (NFT[] memory) {
+  function fetchNFTsCreated() external view returns (NFT[] memory) {
     uint itemCount = _nftsRedeemed.current();
     NFT[] memory nfts = new NFT[](itemCount);
     uint currentIndex;
@@ -266,16 +269,16 @@ contract Mint is ReentrancyGuard, Pausable {
     return nfts;
   }
 
-  function fetchNFTsCreatedCount() public view returns (uint) {
+  function fetchNFTsCreatedCount() external view returns (uint) {
     uint itemCount = _nftsRedeemed.current();
     return itemCount;
   }
 
   ///@notice DEV operations for emergency functions
-  function pause() public hasDevAdmin {
+  function pause() external hasDevAdmin {
       _pause();
   }
-  function unpause() public hasDevAdmin {
+  function unpause() external hasDevAdmin {
       _unpause();
   }
 
@@ -287,7 +290,7 @@ contract Mint is ReentrancyGuard, Pausable {
     payable(roleAdd).transfer(msg.value);
       emit FundsForwarded(msg.value, msg.sender, roleAdd);
   }
-  function onERC1155Received(address, address, uint256, uint256, bytes memory) public virtual returns (bytes4) {
+  function onERC1155Received(address, address, uint256, uint256, bytes memory) external virtual returns (bytes4) {
         return this.onERC1155Received.selector;
     }
   function onERC721Received(
