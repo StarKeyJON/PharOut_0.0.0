@@ -211,7 +211,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
   );
 
   /*~~~> Allowing for upgradability of proxy addresses <~~~*/
-  function setRoleAdd(address _role) public hasAdmin returns(bool){
+  function setRoleAdd(address _role) external hasAdmin returns(bool){
     roleAdd = _role;
     return true;
   }
@@ -247,7 +247,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     uint[] memory amount,
     address[] memory tokenCont,
     address[] memory seller
-  ) public nonReentrant returns(bool){
+  ) external nonReentrant returns(bool){
 
     address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
 
@@ -301,7 +301,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     uint[] memory amount,
     address[] memory tokenCont,
     address[] memory collection
-  ) public nonReentrant{
+  ) external nonReentrant{
     for (uint i; i<tokenCont.length;i++){
       
       address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
@@ -356,7 +356,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     uint[] memory listedId,
     bool[] memory isListed,
     bool[] memory is1155
-  ) public nonReentrant returns(bool){
+  ) external nonReentrant returns(bool){
 
     address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
     address mrktAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
@@ -404,7 +404,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     offerId: Internal id of offer;
   <~~~*/
   ///@return Bool
-  function acceptOfferForNft(uint[] calldata offerId) public nonReentrant returns(bool){
+  function acceptOfferForNft(uint[] calldata offerId) external nonReentrant returns(bool){
 
     address mrktNft = IRoleProvider(roleAdd).fetchAddress(NFTADD);
     address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
@@ -461,7 +461,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     offerId: internal Id of the offer item
     isBlind: external bool needed to determine type of offer
   <~~~*/
-  function withdrawOffer(uint[] memory offerId, bool[] memory isBlind) public nonReentrant returns(bool){
+  function withdrawOffer(uint[] memory offerId, bool[] memory isBlind) external nonReentrant returns(bool){
     for (uint i; i< offerId.length; i++) {
     if (isBlind[i]){
       BlindOffer memory offer = idToBlindOffer[offerId[i]];
@@ -503,7 +503,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     itemId: Market storage Id of the item to be refunded
     offerId: Internal storage Id of the offer
   <~~~*/
-  function refundOffer(uint itemId, uint offerId) public nonReentrant hasContractAdmin returns(bool){
+  function refundOffer(uint itemId, uint offerId) external nonReentrant hasContractAdmin returns(bool){
       Offer memory _offer = idToMktOffer[itemId];
       /// verifying that the refunded offer is the correct one
       require(_offer.offerId == offerId);
