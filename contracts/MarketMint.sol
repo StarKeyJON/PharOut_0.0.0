@@ -201,8 +201,12 @@ contract Mint is ReentrancyGuard, Pausable {
     _nftsCreated.increment();
     uint256 nftId = _nftsCreated.current();
     _idToNft[nftId] = NFT(nftId, msg.sender);
-    IRewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress);
-    IRewardsController(rewardsAddress).createNftHodler(nftId);
+    
+    bool depositSuccess = IRewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress);
+    require(depositSuccess);
+    
+    bool hodlerSuccess = IRewardsController(rewardsAddress).createNftHodler(nftId);
+    require(hodlerSuccess);
 
     emit nftCreated(nftId, msg.sender);
     return true;
