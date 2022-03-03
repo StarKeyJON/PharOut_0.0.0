@@ -64,9 +64,11 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
-import "./interfaces/IRoleProvider.sol";
 import "./interfaces/ICollections.sol";
+import "./interfaces/IEscrow.sol";
+import "./interfaces/INFTMarket.sol";
 import "./interfaces/IRewardsController.sol";
+import "./interfaces/IRoleProvider.sol";
 
 /*~~~>
 Interface declarations for upgradable contracts
@@ -74,23 +76,12 @@ Interface declarations for upgradable contracts
 interface IERC721 {
   function balanceOf(address owner) external view returns(uint);
   function setApprovalForAll(address operator, bool approved) external;
-}interface Offers {
-  function fetchOfferId(uint marketId) external returns(uint);
-  function refundOffer(uint itemID, uint offerId) external;
-}
-interface Bids {
-  function fetchBidId(uint marketId) external returns(uint);
-  function refundBid(uint bidId) external;
-}
-interface Trades {
-  function fetchTradeId(uint marketId) external returns(uint);
-  function refundTrade(uint itemId, uint tradeId) external;
 }
 interface IERC20 {
   function transfer(address to, uint value) external returns (bool);
 }
 
-contract NFTMarket is ReentrancyGuard, Pausable {
+contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
   using SafeMath for uint256;
   using Counters for Counters.Counter;
 
@@ -285,25 +276,25 @@ contract NFTMarket is ReentrancyGuard, Pausable {
       MktItem memory it = idToMktItem[itemId[i]];
       require(it.seller == msg.sender, "Not owner");
 
-      uint bidId = Bids(bidsAdd).fetchBidId(itemId[i]);
+      uint bidId = IBids(bidsAdd).fetchBidId(itemId[i]);
       if (bidId>0) {
       /*~~~> Kill bid and refund bidValue <~~~*/
         //~~~> Call the contract to refund the ETH offered for a bid
-        Bids(bidsAdd).refundBid(bidId);
+        IBids(bidsAdd).refundBid(bidId);
       }
         /*~~~> Check for the case where there is a trade and refund it. <~~~*/
-      uint offerId = Offers(offersAdd).fetchOfferId(itemId[i]);
+      uint offerId = IOffers(offersAdd).fetchOfferId(itemId[i]);
       if (offerId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the NFT offered for trade
-        Offers(offersAdd).refundOffer(itemId[i], offerId);
+        IOffers(offersAdd).refundOffer(itemId[i], offerId);
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
-      uint tradeId = Trades(tradesAdd).fetchTradeId(itemId[i]);
+      uint tradeId = ITrades(tradesAdd).fetchTradeId(itemId[i]);
       if (tradeId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the ERC20 offered for trade
-        Trades(tradesAdd).refundTrade(itemId[i], tradeId);
+        ITrades(tradesAdd).refundTrade(itemId[i], tradeId);
       }
       if(it.is1155){
         IERC1155(it.nftContract).safeTransferFrom(address(this), msg.sender, it.tokenId, it.amount1155, "");
@@ -359,22 +350,22 @@ contract NFTMarket is ReentrancyGuard, Pausable {
         // send (listed amount - saleFee) to seller
         payable(it.seller).transfer(userAmnt);
       }
-      if (Bids(bidsAdd).fetchBidId(itemId[i])>0) {
+      if (IBids(bidsAdd).fetchBidId(itemId[i])>0) {
       /*~~~> Kill bid and refund bidValue <~~~*/
         //~~~> Call the contract to refund the ETH offered for a bid
-        Bids(bidsAdd).refundBid(Bids(bidsAdd).fetchBidId(itemId[i]));
+        IBids(bidsAdd).refundBid(IBids(bidsAdd).fetchBidId(itemId[i]));
       }
         /*~~~> Check for the case where there is a trade and refund it. <~~~*/
-      if (Offers(offersAdd).fetchOfferId(itemId[i]) > 0) {
+      if (IOffers(offersAdd).fetchOfferId(itemId[i]) > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the NFT offered for trade
-        Offers(offersAdd).refundOffer(itemId[i], Offers(offersAdd).fetchOfferId(itemId[i]));
+        IOffers(offersAdd).refundOffer(itemId[i], IOffers(offersAdd).fetchOfferId(itemId[i]));
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
-      if (Trades(tradesAdd).fetchTradeId(itemId[i]) > 0) {
+      if (ITrades(tradesAdd).fetchTradeId(itemId[i]) > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the ERC20 offered for trade
-        Trades(tradesAdd).refundTrade(itemId[i], Trades(tradesAdd).fetchTradeId(itemId[i]));
+        ITrades(tradesAdd).refundTrade(itemId[i], ITrades(tradesAdd).fetchTradeId(itemId[i]));
       }
       if(it.is1155){
         IERC1155(it.nftContract).safeTransferFrom(address(this), msg.sender, it.tokenId, it.amount1155, "");
@@ -574,25 +565,25 @@ function transferFromERC721(address assetAddr, uint256 tokenId, address to) inte
       } else {
         transferERC721(it.nftContract, payable(receiver), it.tokenId);
       }
-      uint bidId = Bids(bidsAdd).fetchBidId(itemId);
+      uint bidId = IBids(bidsAdd).fetchBidId(itemId);
       if (bidId>0) {
       /*~~~> Kill bid and refund bidValue <~~~*/
         //~~~> Call the contract to refund the ETH offered for a bid
-        Bids(bidsAdd).refundBid(bidId);
+        IBids(bidsAdd).refundBid(bidId);
       }
         /*~~~> Check for the case where there is a trade and refund it. <~~~*/
-      uint offerId = Offers(offersAdd).fetchOfferId(itemId);
+      uint offerId = IOffers(offersAdd).fetchOfferId(itemId);
       if (offerId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the NFT offered for trade
-        Offers(offersAdd).refundOffer(itemId, offerId);
+        IOffers(offersAdd).refundOffer(itemId, offerId);
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
-      uint tradeId = Trades(tradesAdd).fetchTradeId(itemId);
+      uint tradeId = ITrades(tradesAdd).fetchTradeId(itemId);
       if (tradeId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the ERC20 offered for trade
-        Trades(tradesAdd).refundTrade(itemId, tradeId);
+        ITrades(tradesAdd).refundTrade(itemId, tradeId);
       }
       openStorage.push(itemId);
       idToMktItem[itemId] = MktItem(false, itemId, 0, 0, 0, address(0x0), payable(0x0), payable(0x0));

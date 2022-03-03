@@ -66,15 +66,13 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 import "./interfaces/IRoleProvider.sol";
+import "./interfaces/IRewardsController.sol";
 import "./interfaces/ICollections.sol";
 
 interface MarketMint {
   function fetchNFTsCreatedCount() external returns(uint);
 }
-interface Collections {
-  function canOfferToken(address token) external returns(bool);
-}
-contract RewardsControl is ReentrancyGuard, Pausable {
+contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
   using SafeMath for uint;
   using Counters for Counters.Counter;
 
@@ -527,8 +525,8 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     tokenAddress: contract address of the ERC20
   <~~~*/
   /// @return Bool
-  function depositERC20Rewards(uint amount, address tokenAddress) public returns(bool){
-    require(Collections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).canOfferToken(tokenAddress)==true);
+  function depositERC20Rewards(uint amount, address tokenAddress) public returns (bool){
+    require(ICollections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).canOfferToken(tokenAddress)==true);
     
     // split fee in 3 parts, 2/3 to users, 1/3 to dao
     uint partySplit = amount.div(3);

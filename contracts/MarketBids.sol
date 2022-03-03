@@ -63,29 +63,20 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
+import "./interfaces/ICollections.sol";
+import "./interfaces/IEscrow.sol";
+import "./interfaces/INFTMarket.sol";
 import "./interfaces/IRoleProvider.sol";
 import "./interfaces/IRewardsController.sol";
-import "./interfaces/ICollections.sol";
 
 /*~~~>
 Interface declarations for upgradable contracts
 <~~~*/
-interface NFTMkt {
-  function transferNftForSale(address receiver, uint itemId) external;
-}
 interface IERC721 {
   function ownerOf(uint tokenId) external view returns(address);
   function balanceOf(address owner) external view returns(uint);
 }
-interface Offers {
-  function fetchOfferId(uint marketId) external returns(uint);
-  function refundOffer(uint itemID, uint offerId) external;
-}
-interface Trades {
-  function fetchTradeId(uint marketId) external returns(uint);
-  function refundTrade(uint itemId, uint tradeId) external;
-}
-contract MarketBids is ReentrancyGuard, Pausable {
+contract MarketBids is ReentrancyGuard, Pausable, IBids {
   using SafeMath for uint;
   using Counters for Counters.Counter;
 
@@ -400,7 +391,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
         //*~~~> Disallow if the msg.sender is not the token owner
         require(IERC721(bid.collectionBid).ownerOf(tokenId[i]) == msg.sender, "Not the token owner!");
         if(listedId[i]>0){
-            NFTMkt(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
+            INFTMarket(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
           } else {
             transferFromERC721(bid.collectionBid, tokenId[i], bid.bidder);
           }
@@ -410,7 +401,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
         if(listedId[i]==0){
           IERC1155(bid.collectionBid).safeTransferFrom(address(msg.sender), bid.bidder, tokenId[i], bid.amount, "");
         } else {
-          NFTMkt(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
+          INFTMarket(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
         }
       }
       blindOpenStorage.push(blindBidId[i]);
@@ -453,22 +444,22 @@ contract MarketBids is ReentrancyGuard, Pausable {
         payable(bid.seller).transfer(bid.bidValue);
       }
       /*~~~> Check for the case where there is a trade and refund it. <~~~*/
-      uint offerId = Offers(offersAdd).fetchOfferId(bid.itemId);
+      uint offerId = IOffers(offersAdd).fetchOfferId(bid.itemId);
       if (offerId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the NFT offered for trade
-        Offers(offersAdd).refundOffer(bid.itemId, offerId);
+        IOffers(offersAdd).refundOffer(bid.itemId, offerId);
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
-      uint tradeId = Trades(tradesAdd).fetchTradeId(bid.itemId);
+      uint tradeId = ITrades(tradesAdd).fetchTradeId(bid.itemId);
       if (tradeId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the ERC20 offered for trade
-        Trades(tradesAdd).refundTrade(bid.itemId, tradeId);
+        ITrades(tradesAdd).refundTrade(bid.itemId, tradeId);
       }
       openStorage.push(bidId[i]);
       idToNftBid[bidId[i]] = Bid(0, 0, bidId[i], 0, 0, payable(address(0x0)), payable(address(0x0)));
-      NFTMkt(marketAdd).transferNftForSale(address(bid.bidder), bid.itemId);
+      INFTMarket(marketAdd).transferNftForSale(address(bid.bidder), bid.itemId);
       emit BidAccepted(bid.itemId, bidId[i], bid.bidValue, bid.bidder, bid.seller);
     }
   return true;
