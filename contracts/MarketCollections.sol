@@ -132,7 +132,7 @@ contract MarketCollections is ICollections {
     return true;
   }
 
-  function canOfferToken(address token) external view returns(bool){
+  function canOfferToken(address token) public view returns(bool){
     return addressToOfferable[token];
   }
   function canOfferToken(address[] memory tokens) external view returns(bool){
@@ -144,11 +144,11 @@ contract MarketCollections is ICollections {
     return false;  }
 
   // checks if the collection is restricted from trading, returns false if not
-  function isRestricted(address nftContract) external view returns (bool) {
+  function isRestricted(address nftContract) public view returns (bool) {
     require(nftContract != address(0), "Trying to check zero address");
     return addressToRestricted[nftContract];
   }
-  function isRestricted(address[] external nftContracts) external view returns (bool) {
+  function isRestricted(address[] memory nftContracts) external view returns (bool) {
     for(uint256 i = 0; i < nftContracts.length; i++) {
       if (isRestricted(nftContracts[i])) {
         return true;
