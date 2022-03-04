@@ -263,7 +263,7 @@ module.exports = {
   solidity: {
     compilers: [
       {
-        version: "0.8.12",
+        version: "0.8.7",
         settings: {
           optimizer: {
             enabled: true,
@@ -272,7 +272,7 @@ module.exports = {
         },
       },
       {
-        version: "0.6.7",
+        version: "0.8.4",
         settings: {
           optimizer: {
             enabled: true,
@@ -283,7 +283,7 @@ module.exports = {
     ],
   },
   ovm: {
-    solcVersion: "0.7.6",
+    solcVersion: "0.8.7",
   },
   namedAccounts: {
     deployer: {
