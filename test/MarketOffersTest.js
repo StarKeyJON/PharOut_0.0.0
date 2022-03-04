@@ -105,19 +105,19 @@ describe("MarketPlace Offers Contract Unit Test", function() {
     /// Assiging mint contract minter role
     await phamNft.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", marketMintAddress);
 
+    // CONTRACT_ROLE: bytes32: 0x364d3d7565c7a8300c96fd53e065d19b65848d7b23b3191adcd55621c744223c
+    // PROXY_ROLE: bytes32: 0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b
+        // DEV_ROLE: bytes32:0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2
+    await roleProvider.grantRole("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",ownerProxyAddress);
+    await ownerProxy.setProxyRole(testDao.address, 1)
+    await ownerProxy.setProxyRole(testDev.address, 1)
+
+    console.log("Initialized all the contract addresses to the Owner Proxy contract and assigned PROXY_ROLE.")
     /// Setting the total amount of NFTs minted in the available NFTs array
     const tokens = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];
     await marketMint.setNftTokenIds(tokens);
     console.log("Nft ids set with: ", tokens)
-    // CONTRACT_ROLE: bytes32: 0x364d3d7565c7a8300c96fd53e065d19b65848d7b23b3191adcd55621c744223c
-    // PROXY_ROLE: bytes32: 0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b
-    console.log("Initialized all the contract addresses to the Owner Proxy contract and assigned PROXY_ROLE.")
-    await roleProvider.grantRole("0x77d72916e966418e6dc58a19999ae9934bef3f749f1547cde0a86e809f19c89b",ownerProxyAddress);
-    // DEV_ROLE: bytes32:0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2
-    await ownerProxy.setProxyRole(testDao.address, 1)
-    await ownerProxy.setProxyRole(testDev.address, 1)
-    // await roleProvider.grantRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",ownerProxyAddress);
-    // await ownerProxy.setProxyRole("0x51b355059847d158e68950419dbcd54fad00bdfd0634c2515a5c533288c7f0a2",testDao.getAddress())
+    
     const address = await testDao.getAddress();
     const balance = await ethers.provider.getBalance(address);
     const tokenbalance = await token.balanceOf(address);
