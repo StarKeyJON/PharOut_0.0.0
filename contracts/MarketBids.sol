@@ -376,7 +376,8 @@ contract MarketBids is ReentrancyGuard, Pausable {
           uint256 saleFee = calcFee(bid.bidValue);
           uint256 userAmnt = bid.bidValue.sub(saleFee);
           /// send saleFee to rewards controller
-          IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+          bool success = IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+          require(success);
           /// send (bidValue - saleFee) to user
           payable(msg.sender).transfer(userAmnt);
         } else {
@@ -386,9 +387,11 @@ contract MarketBids is ReentrancyGuard, Pausable {
         //*~~~> Disallow if the msg.sender is not the token owner
         require(IERC721(bid.collectionBid).ownerOf(tokenId[i]) == msg.sender, "Not the token owner!");
         if(listedId[i]>0){
-            INFTMarket(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
+            bool success = INFTMarket(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
+            require(success);
           } else {
-            transferFromERC721(bid.collectionBid, tokenId[i], bid.bidder);
+            bool success = transferFromERC721(bid.collectionBid, tokenId[i], bid.bidder);
+            require(success);
           }
       } else {
         uint bal = IERC1155(bid.collectionBid).balanceOf(msg.sender, tokenId[i]);
@@ -396,7 +399,8 @@ contract MarketBids is ReentrancyGuard, Pausable {
         if(listedId[i]==0){
           IERC1155(bid.collectionBid).safeTransferFrom(address(msg.sender), bid.bidder, tokenId[i], bid.amount, "");
         } else {
-          INFTMarket(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
+          bool success = INFTMarket(marketAdd).transferNftForSale(bid.bidder, listedId[i]);
+          require(success);
         }
       }
       blindOpenStorage.push(blindBidId[i]);
@@ -431,8 +435,9 @@ contract MarketBids is ReentrancyGuard, Pausable {
           /*~~~> Calculating the platform fee <~~~*/
           uint256 saleFee = calcFee(bid.bidValue);
           uint256 userAmnt = bid.bidValue.sub(saleFee);
-          /// send saleFee to rewards controller
-          IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+          /// send saleFee to rewards controller :: srs == split rewards success
+          bool srs = IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+          require(srs);
           /// send (bidValue - saleFee) to user
           payable(bid.seller).transfer(userAmnt);
       } else {
@@ -442,19 +447,23 @@ contract MarketBids is ReentrancyGuard, Pausable {
       uint offerId = IOffers(offersAdd).fetchOfferId(bid.itemId);
       if (offerId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
-        //*~~~> Call the contract to refund the NFT offered for trade
-        IOffers(offersAdd).refundOffer(bid.itemId, offerId);
+        //*~~~> Call the contract to refund the NFT offered for trade :: ros == refundOffer success
+        bool ros = IOffers(offersAdd).refundOffer(bid.itemId, offerId);
+        require(ros);
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
       uint tradeId = ITrades(tradesAdd).fetchTradeId(bid.itemId);
       if (tradeId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
-        //*~~~> Call the contract to refund the ERC20 offered for trade
-        ITrades(tradesAdd).refundTrade(bid.itemId, tradeId);
+        //*~~~> Call the contract to refund the ERC20 offered for trade :: rts == refund trade success
+        bool rts = ITrades(tradesAdd).refundTrade(bid.itemId, tradeId);
+        require(rts);
       }
       openStorage.push(bidId[i]);
       idToNftBid[bidId[i]] = Bid(0, 0, bidId[i], 0, 0, payable(address(0x0)), payable(address(0x0)));
-      INFTMarket(marketAdd).transferNftForSale(address(bid.bidder), bid.itemId);
+      /// tnfts == transferNftForSale success
+      bool tnfts = INFTMarket(marketAdd).transferNftForSale(address(bid.bidder), bid.itemId);
+      require(tnfts);
       emit BidAccepted(bid.itemId, bidId[i], bid.bidValue, bid.bidder, bid.seller);
     }
   return true;
@@ -517,7 +526,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
       tokenId: Id of the token to be transfered;
       to: to be transfered to;
     <~~~*/
-function transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
+function transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual returns(bool){
     address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
     address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
     bytes memory data;
@@ -538,6 +547,7 @@ function transferFromERC721(address assetAddr, uint256 tokenId, address to) inte
     }
     (bool success, bytes memory resultData) = address(assetAddr).call(data);
     require(success, string(resultData));
+    return true;
   }
 
   /// @notice 
