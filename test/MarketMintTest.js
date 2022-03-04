@@ -108,7 +108,6 @@ describe("MarketPlace Mint ERC721 Contract Unit Test", function() {
     
     /// Assiging mint contract minter role
     await phamNft.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", marketMintAddress);
-    console.log("Minted 20 NFTs and sent to the Mint contract")
     /// Setting the total amount of NFTs minted in the available NFTs array
     const tokens = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
     await marketMint.setNftTokenIds(tokens);
@@ -147,7 +146,6 @@ describe("MarketPlace Mint ERC721 Contract Unit Test", function() {
     await marketMint.redeemForNft(1)
     await marketMint.redeemForNft(1)
     await marketMint.redeemForNft(1)
-
 
     await marketMint.fetchNFTsCreated().then(res=>{
       res.forEach(item=>{
