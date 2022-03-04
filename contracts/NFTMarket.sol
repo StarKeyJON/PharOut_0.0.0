@@ -549,8 +549,9 @@ function transferFromERC721(address assetAddr, uint256 tokenId, address to) inte
   /*~~~>
     Only marketplace proxy contracts can call the function. 
   <~~~*/
-  function transferNftForSale(address receiver, uint itemId) public whenNotPaused hasContractAdmin {
-      _transferForSale(receiver, itemId);
+  function transferNftForSale(address receiver, uint itemId) public whenNotPaused hasContractAdmin returns(bool) {
+    _transferForSale(receiver, itemId);
+    return true;
   }
 
   ///@notice internal function to transfer NFT only this contract can call
