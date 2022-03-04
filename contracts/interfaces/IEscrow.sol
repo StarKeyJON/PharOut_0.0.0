@@ -1,4 +1,4 @@
-pragma solidity 0.8.12;
+pragma solidity 0.8.7;
 
 interface IOffers {
   function fetchOfferId(uint marketId) external returns(uint);
