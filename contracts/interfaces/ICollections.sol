@@ -1,4 +1,4 @@
-pragma solidity 0.8.12;
+pragma solidity 0.8.7;
 
 interface ICollections {
   function isRestricted(address nftContract) external returns(bool);
