@@ -1,4 +1,4 @@
-pragma solidity 0.8.12;
+pragma solidity 0.8.7;
 
 interface IRoleProvider {
   function hasTheRole(bytes32 role, address _address) external returns(bool);
