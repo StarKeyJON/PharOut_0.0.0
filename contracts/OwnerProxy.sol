@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT
+
+/*~~~> PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,11 +56,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
+ 
 pragma solidity  0.8.12;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-
 import "./interfaces/ICollections.sol";
 import "./interfaces/IRoleProvider.sol";
 import "./interfaces/IRewardsController.sol";
@@ -90,7 +91,7 @@ interface RoleProvider is IRoleProvider {
   function setPhunkyAdd(address _phunky) external returns(bool);
   function setDevSigAddress(address _sig) external returns(bool);
   function hasTheRole(bytes32 role, address _address) external returns(bool);
-  function setAddressGivenBytes(bytes32 key, address _sig) external returns(bool);
+  function setAddressGivenSwitch(address _sig, uint _switch) external returns(bool);
   function setMarketAdd(address _mrktAdd) external returns(bool);
 }
 
@@ -198,14 +199,8 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
   /*~~~>
     For setting the roles in the role provider contract
   <~~~*/
-  function setProxyRoles(bytes32[] calldata key, address[] calldata _sig) hasAdmin public returns(bool){
-    for (uint i; i<_sig.length; i++){
-      RoleProvider(roleAdd).setAddressGivenBytes(key[i], _sig[i]);
-    }
-    return true;
-  }
-  function setProxyRole(bytes32 key, address _sig) hasAdmin public returns(bool){
-    RoleProvider(roleAdd).setAddressGivenBytes(key, _sig);
+  function setProxyRole(address _sig, uint _switch) hasAdmin public returns(bool){
+    RoleProvider(roleAdd).setAddressGivenSwitch(_sig, _switch);
     return true;
   }
 
