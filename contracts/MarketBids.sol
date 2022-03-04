@@ -57,7 +57,7 @@
 
  <~~~*/
 
-pragma solidity 0.8.12;
+pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -435,7 +435,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
           /*~~~> Calculating the platform fee <~~~*/
           uint256 saleFee = calcFee(bid.bidValue);
           uint256 userAmnt = bid.bidValue.sub(saleFee);
-          /// send saleFee to rewards controller :: srs == split rewards success
+          /// send saleFee to rewards controller
           require(IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee));
           /// send (bidValue - saleFee) to user
           payable(bid.seller).transfer(userAmnt);
@@ -446,19 +446,18 @@ contract MarketBids is ReentrancyGuard, Pausable {
       uint offerId = IOffers(offersAdd).fetchOfferId(bid.itemId);
       if (offerId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
-        //*~~~> Call the contract to refund the NFT offered for trade :: ros == refundOffer success
+        //*~~~> Call the contract to refund the NFT offered for trade 
         require(IOffers(offersAdd).refundOffer(bid.itemId, offerId));
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
       uint tradeId = ITrades(tradesAdd).fetchTradeId(bid.itemId);
       if (tradeId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
-        //*~~~> Call the contract to refund the ERC20 offered for trade :: rts == refund trade success
+        //*~~~> Call the contract to refund the ERC20 offered for trade 
         require(ITrades(tradesAdd).refundTrade(bid.itemId, tradeId));
       }
       openStorage.push(bidId[i]);
       idToNftBid[bidId[i]] = Bid(0, 0, bidId[i], 0, 0, payable(address(0x0)), payable(address(0x0)));
-      /// tnfts == transferNftForSale success
       require(INFTMarket(marketAdd).transferNftForSale(address(bid.bidder), bid.itemId));
       emit BidAccepted(bid.itemId, bidId[i], bid.bidValue, bid.bidder, bid.seller);
     }
