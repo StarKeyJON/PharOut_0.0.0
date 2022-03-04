@@ -57,7 +57,7 @@
 
  <~~~*/
 
-pragma solidity  >=0.8.0 <0.9.0;
+pragma solidity 0.8.12;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -436,8 +436,7 @@ contract MarketBids is ReentrancyGuard, Pausable {
           uint256 saleFee = calcFee(bid.bidValue);
           uint256 userAmnt = bid.bidValue.sub(saleFee);
           /// send saleFee to rewards controller :: srs == split rewards success
-          bool srs = IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
-          require(srs);
+          require(IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee));
           /// send (bidValue - saleFee) to user
           payable(bid.seller).transfer(userAmnt);
       } else {
@@ -448,22 +447,19 @@ contract MarketBids is ReentrancyGuard, Pausable {
       if (offerId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the NFT offered for trade :: ros == refundOffer success
-        bool ros = IOffers(offersAdd).refundOffer(bid.itemId, offerId);
-        require(ros);
+        require(IOffers(offersAdd).refundOffer(bid.itemId, offerId));
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
       uint tradeId = ITrades(tradesAdd).fetchTradeId(bid.itemId);
       if (tradeId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the ERC20 offered for trade :: rts == refund trade success
-        bool rts = ITrades(tradesAdd).refundTrade(bid.itemId, tradeId);
-        require(rts);
+        require(ITrades(tradesAdd).refundTrade(bid.itemId, tradeId));
       }
       openStorage.push(bidId[i]);
       idToNftBid[bidId[i]] = Bid(0, 0, bidId[i], 0, 0, payable(address(0x0)), payable(address(0x0)));
       /// tnfts == transferNftForSale success
-      bool tnfts = INFTMarket(marketAdd).transferNftForSale(address(bid.bidder), bid.itemId);
-      require(tnfts);
+      require(INFTMarket(marketAdd).transferNftForSale(address(bid.bidder), bid.itemId));
       emit BidAccepted(bid.itemId, bidId[i], bid.bidValue, bid.bidder, bid.seller);
     }
   return true;
