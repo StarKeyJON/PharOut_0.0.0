@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT 
+
+/*~~~> PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,28 +56,26 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity 0.8.12;
+
+pragma solidity  >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-
 import "./interfaces/ICollections.sol";
 import "./interfaces/IEscrow.sol";
 import "./interfaces/INFTMarket.sol";
 import "./interfaces/IRoleProvider.sol";
 import "./interfaces/IRewardsController.sol";
 
-/*~~~>
-Interface declarations for upgradable contracts
-<~~~*/
 interface IERC721 {
   function ownerOf(uint tokenId) external view returns(address);
   function balanceOf(address owner) external view returns(uint);
 }
-contract MarketBids is ReentrancyGuard, Pausable, IBids {
+
+contract MarketBids is ReentrancyGuard, Pausable {
   using SafeMath for uint;
   using Counters for Counters.Counter;
 
@@ -251,12 +250,11 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
     uint[] memory itemId,
     uint[] memory bidValue,
     address[] memory seller
-  ) public payable whenNotPaused nonReentrant returns(bool){
+  ) public payable whenNotPaused returns(bool){
     uint total;
     for (uint i;i < tokenId.length;i++){
       total = total.add(bidValue[i]);
       require(bidValue[i] > 1e12, "Must be greater than 1e12 gwei.");
-      require(seller[i] != address(0), "Seller cannot be zero");
       /*~~~> 
         Check for the case where there is a bid.
           If the bid entered is lesser than the existing bid, revert.
@@ -314,14 +312,12 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
     address[] memory bidAddress) public payable whenNotPaused nonReentrant returns(bool){
 
     address collectionAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
-    require(collectionAdd != address(0), "Collection address is not set in RoleProvider");
-    require(ICollections(collectionAdd).isRestricted(bidAddress) == false);
-
+    
     uint total;
     for (uint i;i<bidAddress.length;i++){
       total = total.add(value[i]);
       require(value[i] > 1e12, "Must be greater than 1e12 gwei.");
-      require(bidAddress[i] != address(0), "Inputting zero address to bid on");
+      require(ICollections(collectionAdd).isRestricted(bidAddress[i]) == false);
       uint bidId;
       uint len = blindOpenStorage.length;
       if (len>=1){
@@ -365,18 +361,17 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
     uint[] memory listedId, 
     bool[] memory is1155) public whenNotPaused nonReentrant returns(bool){
     
+    address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
     address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
     uint balance = IERC721(marketAdd).balanceOf(msg.sender);
 
-    for (uint i;i<blindBidId.length;i++){
+    for (uint i; i<blindBidId.length; i++){
       BlindBid memory bid = idToBlindBid[blindBidId[i]];
       //*~~~> Disallow random acceptances if specific
       if(bid.specific){
           require(tokenId[i]==bid.tokenId,"Wrong item!");
         }
         if(balance<1){
-          address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
-          require(rewardsAdd != address(0), "Rewards Address not set in Role Provider");
           /*~~~> Calculating the platform fee <~~~*/
           uint256 saleFee = calcFee(bid.bidValue);
           uint256 userAmnt = bid.bidValue.sub(saleFee);
@@ -473,7 +468,7 @@ contract MarketBids is ReentrancyGuard, Pausable, IBids {
       isBlind: if it is a blind blind (true);
     <~~~*/
   /// @return Bool
-  function withdrawBid(uint[] memory bidId, bool[] memory isBlind) public nonReentrant returns(bool){
+  function withdrawBid(uint[] memory bidId, bool[] memory isBlind) public  nonReentrant returns(bool){
     for (uint i;i<bidId.length;i++){
       if (isBlind[i]){
         BlindBid memory bid = idToBlindBid[bidId[i]];
