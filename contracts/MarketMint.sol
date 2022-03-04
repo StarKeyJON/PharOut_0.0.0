@@ -57,7 +57,7 @@
 
  <~~~*/
 
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity 0.8.12;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -66,7 +66,9 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./interfaces/IRoleProvider.sol";
 import "./interfaces/IRewardsController.sol";
-
+interface MarketNFT {
+  function safeMint(address to, uint _tokenId) external;
+}
 interface IERC20 {
   function balanceOf(address account) external view returns (uint256);
   function allowance(address owner, address spender) external view returns (uint256);
@@ -175,10 +177,9 @@ contract Mint is ReentrancyGuard, Pausable {
   //*~~~> For updating the total NFT array with new tokenIds
     ///@dev Can only be incremented!
     //*~~~> uint _tokenIds: token Ids to add to the array
-  function setNftTokenIds(uint _amount) external hasDevAdmin returns(bool){
-    for (uint i; i<_amount; i++){
-      totalNfts = totalNfts+1;
-      availableNfts.push(totalNfts);
+  function setNftTokenIds(uint[] memory _tokenIds) public hasDevAdmin returns(bool){
+    for (uint i; i<_tokenIds.length; i++){
+      availableNfts.push(_tokenIds[i]);
     }
     nftsRemaining = availableNfts.length;
     return true;
@@ -212,7 +213,7 @@ contract Mint is ReentrancyGuard, Pausable {
     uint256 nftId = _nftsRedeemed.current();
     /// Using the new ID as a nonce to generate a random tokenId from the available NFTs
     uint tokenId = getQuasiRandom(nftId);
-    IERC721(nftAddress).safeTransferFrom(address(this), msg.sender, tokenId);
+    MarketNFT(nftAddress).safeMint(msg.sender, tokenId);
     _idToNft[nftId] = NFT(nftId, tokenId, nftAddress);
 
     bool depositSuccess = IRewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress);
@@ -231,7 +232,6 @@ contract Mint is ReentrancyGuard, Pausable {
   <~~~*/
     function getQuasiRandom(uint nonce) internal returns(uint ramndomNumber){
       uint quasiRandom = uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, nonce))) % nftsRemaining;
-      require(quasiRandom <= nftsRemaining);
       uint newId = availableNfts[quasiRandom];
       /// Shifting the last ID to the selected id position
       availableNfts[quasiRandom] = availableNfts[nftsRemaining-1];
