@@ -57,7 +57,7 @@
 
  <~~~*/
  
-pragma solidity  0.8.12;
+pragma solidity  0.8.7;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
@@ -90,7 +90,6 @@ interface RoleProvider is IRoleProvider {
   function setOwnerProxyAdd(address _proxyAdd) external returns(bool);
   function setPhunkyAdd(address _phunky) external returns(bool);
   function setDevSigAddress(address _sig) external returns(bool);
-  function hasTheRole(bytes32 role, address _address) external returns(bool);
   function setAddressGivenSwitch(address _sig, uint _switch) external returns(bool);
   function setMarketAdd(address _mrktAdd) external returns(bool);
 }
@@ -269,6 +268,7 @@ contract OwnerProxy is ReentrancyGuard, Pausable {
   ///@notice
   //*~~~> Withdraw function for any stuck ETH sent
   function withdrawAmountFromContract(address _add) hasAdmin external {
+    require(_add == RoleProvider(roleAdd).fetchAddress(DEV));
       payable(_add).transfer(address(this).balance);
    }
 }
