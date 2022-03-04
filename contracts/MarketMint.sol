@@ -262,8 +262,8 @@ contract Mint is ReentrancyGuard, Pausable {
     NFT[] memory nfts = new NFT[](itemCount);
     uint currentIndex;
     for (uint i; i < itemCount; i++) {
-      NFT storage currentItem = _idToNft[i + 1];
-      nfts[currentIndex] = currentItem;
+      NFT storage currentItem = _idToNft[i];
+      nfts[i] = currentItem;
       currentIndex++;
     }
     return nfts;
