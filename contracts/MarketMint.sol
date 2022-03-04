@@ -208,13 +208,13 @@ contract Mint is ReentrancyGuard, Pausable {
     /// Execute transfer
     tokenContract.transferFrom(msg.sender, rewardsAddress, token.redeemAmount);
     
-    ///Keeping track of total claimed
-    _nftsRedeemed.increment();
     uint256 nftId = _nftsRedeemed.current();
     /// Using the new ID as a nonce to generate a random tokenId from the available NFTs
     uint tokenId = getQuasiRandom(nftId);
     MarketNFT(nftAddress).safeMint(msg.sender, tokenId);
     _idToNft[nftId] = NFT(nftId, tokenId, nftAddress);
+    ///Keeping track of total claimed
+    _nftsRedeemed.increment();
 
     bool depositSuccess = IRewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress);
     require(depositSuccess);
