@@ -62,23 +62,34 @@ pragma solidity  0.8.12;
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./interfaces/ICollections.sol";
 import "./interfaces/IEscrow.sol";
 import "./interfaces/INFTMarket.sol";
 import "./interfaces/IRoleProvider.sol";
+import "./interfaces/IRewardsController.sol";
 
-contract MarketTrades is ReentrancyGuard, Pausable {
+interface IERC20 {
+  function balanceOf(address account) external view returns (uint256);
+  function allowance(address owner, address spender) external view returns (uint256);
+  function transfer(address recipient, uint256 amount) external returns (bool);
+  function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+  event Transfer(address indexed from, address indexed to, uint256 value);
+}
+
+contract MarketOffers is ReentrancyGuard, Pausable {
+  using SafeMath for uint;
   using Counters for Counters.Counter;
-  
-  //*~~~> counter increments NFTs Trade Offers
-  Counters.Counter private _trades;
-  Counters.Counter private _blindTrades;
+  //*~~~> counter increments NFTs Offers
+  Counters.Counter private _offerIds;
+
+  //*~~~> counter increments Blind Offers
+  Counters.Counter private _blindOfferIds;
 
   //*~~~> Roles for designated accessibility
-  bytes32 public constant PROXY_ROLE = keccak256("PROXY_ROLE");
+  bytes32 public constant PROXY_ROLE = keccak256("PROXY_ROLE"); 
   bytes32 public constant CONTRACT_ROLE = keccak256("CONTRACT_ROLE");
   bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE");
   modifier hasAdmin(){
@@ -94,545 +105,417 @@ contract MarketTrades is ReentrancyGuard, Pausable {
     _;
   }
 
-  //*~~~> Upgradable addresses
+  //*~~~> State variables
   address public roleAdd;
-
-  //*~~~> global address variable from Role Provider contract
-  bytes32 public constant MARKET = keccak256("MARKET");
-
-  bytes32 public constant BIDS = keccak256("BIDS");
-
-  bytes32 public constant COLLECTION = keccak256("COLLECTION");
-
-  bytes32 public constant OFFERS = keccak256("OFFERS");
-
   uint[] private openStorage;
   uint[] private blindOpenStorage;
 
-  //*~~~> Fee constructor initially set to .005%
-  constructor(address _role){
+  //*~~~> global address variable from Role Provider contract
+  bytes32 public constant NFTADD = keccak256("NFT");
+
+  bytes32 public constant REWARDS = keccak256("REWARDS");
+
+  bytes32 public constant MARKET = keccak256("MARKET");
+
+  bytes32 public constant BIDS = keccak256("BIDS");
+  
+  bytes32 public constant TRADES = keccak256("TRADES");
+
+  bytes32 public constant MINT = keccak256("MINT");
+
+  bytes32 public constant COLLECTION = keccak256("COLLECTION");
+
+
+  //*~~~> sets deployment address as default admin role
+  constructor(address _role) {
     roleAdd = _role;
   }
 
-  //*~~~> Declaring object struct for trades entered
-  struct Trade {
-      bool is1155; 
-      uint itemId;
-      uint tradeId;
-      uint tokenId;
-      uint amount1155;
-      address nftCont;
-      address payable trader;
-      address seller;
-  }
-    struct BlindTrade {
-      bool is1155;
-      bool isActive;
-      bool isSpecific;
-      uint wantedId;
-      uint tradeId;
-      uint tokenId;
-      uint amount1155;
-      address nftCont;
-      address wantCont;
-      address trader;
+  //*~~~> Declaring object structures for market item offers
+  struct Offer {
+    bool isActive;
+    uint offerId;
+    uint itemId;
+    uint amount;
+    address tokenCont;
+    address payable offerer;
+    address seller;
   }
 
-  //*~~~> Memory array of all Trades
-  mapping (uint256 => Trade) private idToNftTrade;
-  mapping (uint256 => BlindTrade) private idToBlindTrade;
-  mapping (uint => uint) private marketIdToTradeId;
+  //*~~~> Declaring object structures for blind offers
+  struct BlindOffer {
+    bool isSpecific;
+    uint amount1155;
+    uint tokenId;
+    uint blindOfferId;
+    uint amount;
+    address tokenCont;
+    address collectionOffer;
+    address payable offerer;
+  }
 
-  //*~~~> Declaring event object structure for trade entered
-  event TradeEntered(
-      bool is1155,
-      uint itemId,
-      uint tradeId,
-      uint tokenId,
-      uint amount1155,
-      address indexed nftCont,
-      address indexed trader,
-      address indexed seller
-  );
-  event BlindTradeEntered(
-      bool is1155,
-      bool isSpecific,
-      uint wantedId,
-      uint tradeId,
-      uint tokenId,
-      uint amount1155,
-      address indexed nftCont,
-      address indexed wantCont,
-      address indexed trader
-  );
+  //*~~~> Mapping of all Offers
+  mapping (uint => Offer) private idToMktOffer;
+  //*~~~> Mapping of all Blind Offers
+  mapping (uint => BlindOffer) private idToBlindOffer;
+  //*~~~> Mapping of market itemId to offerId
+  mapping (uint => uint) private marketIdToOfferId;
 
-  //*~~~> Declaring event object structure for trade withdrawn
-  event TradeWithdrawn(
-      bool is1155,
-      uint itemId,
-      uint tradeId,
-      uint indexed tokenId,
-      address indexed nftCont,
-      address indexed trader
+  //*~~~> Declaring event object struct for market item offers
+  event Offered(
+    uint offerId,
+    uint indexed itemId,
+    address indexed seller,
+    address indexed offerer,
+    uint amount
   );
 
-  //*~~~> Declaring event object structure for trade accepted
-  event TradeAccepted(
-      bool is1155,
-      bool isActive,
-      uint indexed itemId,
-      uint indexed tradeId,
-      uint tokenId,
-      address nftCont,
-      address indexed trader,
-      address seller
-  );  
-
-  //*~~~> Declaring event object structure for trade updated
-  event TradeUpdated(
-      bool is1155,
-      bool isActive,
-      uint indexed itemId,
-      uint indexed tradeId,
-      uint tokenId,
-      address nftCont,
-      address indexed trader,
-      address seller
+  //*~~~> Declaring event object struct for blind offer
+  event BlindOffered(
+    bool isSpecific,
+    uint tokenId,
+    uint offerId,
+    uint amount,
+    address indexed offerer,
+    address indexed collectionOffer
+  );
+  
+  //*~~~> Declaring the object structure for offer withdrawn
+  event OfferWithdrawn(
+    uint indexed offerId,
+    uint indexed itemId,
+    address indexed offerer
   );
 
-  ///@notice
-  /*~~~>
-    Public function to enter a trade of an ERC721 or ERC1155 NFT for any item listed on market
-  <~~~*/
-  ///@dev
-  /*~~~>
-    amount1155: how many ERC1155 to be offered for trade;
-    itemId: Market contract internal state itemId;
-    tokenId: specific token Id to trade listed item for;
-    nftContract: contract address of the NFT to trade;
-    seller: ownerOf NFT desired;
-  <~~~*/
-  function enterTrade(
-      uint[] memory amount1155,
-      uint[] memory itemId,
-      uint[] memory tokenId,
-      address[] memory nftContract,
-      address[] memory seller
-  ) public whenNotPaused nonReentrant returns(bool){
-    for (uint i;i<itemId.length;i++) {
-      require(ICollections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).isRestricted(nftContract[i]) == false);
-      uint tradeId;
-      if (openStorage.length>=1) {
-        tradeId = openStorage[openStorage.length-1];
-        _remove(0);
-      } else {
-        _trades.increment();
-        tradeId = _trades.current();
-      }
-      if (amount1155[i]>0){
-        IERC1155(nftContract[i]).safeTransferFrom(address(this), payable(msg.sender), tokenId[i], amount1155[i], "");
-        marketIdToTradeId[itemId[i]] = tradeId;
-        idToNftTrade[tradeId] = Trade(true, itemId[i], tradeId, tokenId[i], amount1155[i], nftContract[i], payable(msg.sender), seller[i]);
-        emit TradeEntered(
-          true,
-          itemId[i], 
-          tradeId, 
-          tokenId[i],
-          amount1155[i],
-          nftContract[i], 
-          msg.sender, 
-          seller[i]);
-      } else {
-        transferFromERC721(nftContract[i], tokenId[i], address(this));
-        approveERC721(nftContract[i], address(this), tokenId[i]);
-        marketIdToTradeId[itemId[i]] = tradeId;
-        idToNftTrade[tradeId] = Trade(false, itemId[i], tradeId, tokenId[i], amount1155[i], nftContract[i], payable(msg.sender), seller[i]);
-        emit TradeEntered(
-          false,
-          itemId[i], 
-          tradeId, 
-          tokenId[i],
-          amount1155[i],
-          nftContract[i], 
-          msg.sender, 
-          seller[i]);
-      }
+  //*~~~> Declaring the object structure for blind offer withdrawn
+  event BlindOfferWithdrawn(
+    uint indexed offerId,
+    address indexed offerer
+  );
+  
+  //*~~~> Declaring the object structure for offer accepted
+  event OfferAccepted(
+    uint offerId,
+    uint indexed itemId,
+    address indexed offerer,
+    address indexed seller
+  );
+
+  //*~~~> Declaring event object structure for offer refund
+  event OfferRefunded(
+    uint indexed offerId,
+    uint indexed itemId,
+    address indexed offerer
+  );
+
+  /*~~~> Allowing for upgradability of proxy addresses <~~~*/
+  function setRoleAdd(address _role) public hasAdmin returns(bool){
+    roleAdd = _role;
+    return true;
+  }
+
+  /// @notice 
+  /*~~~> 
+    Calculating the platform fee, 
+      Base fee set at 2% (i.e. value * 200 / 10,000) 
+      Future fees can be set by the controlling DAO 
+    <~~~*/
+  /// @return platform fee
+  function calcFee(uint256 _value) public returns (uint256)  {
+      address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
+      uint fee = IRewardsController(rewardsAdd).getFee();
+      uint256 percent = (_value.mul(fee)).div(10000);
+      return percent;
     }
-  return true;
-  }
 
-  ///@notice
-  //*~~~> Public function to enter blind trades
+  ///@notice 
+  /*~~~>
+    Public function to offer ERC20 tokens to swap with any ERC721 or ERC1155
+  <~~~*/
   ///@dev
   /*~~~>
-    is1155: (true) if ERC1155;
-    isSpecific: (true) if item to trade for is specific;
-    wantedId: token Id of the NFT desired;
-    tokenId: token Id of the NFT to trade for wanted NFT;
-    amount1155: how many 1155;
-    nftContract: token address of the NFT entered to trade;
-    wantContract: wanted contract address;
+    itemId: market item Id;
+    amount: ERC20 amount;
+    tokenCont: Contract of token to be offered;
+    seller: ownerOf the NFT item listed for sale
   <~~~*/
-  function enterBlindTrade(
-      bool[] memory is1155,
-      bool[] memory isSpecific,
-      uint[] memory wantedId,
-      uint[] memory tokenId,
-      uint[] memory amount1155,
-      address[] memory nftContract,
-      address[] memory wantContract
-  ) public whenNotPaused nonReentrant{
+  ///@return Bool
+  function enterOfferForNft(
+    uint256[] memory itemId,
+    uint[] memory amount,
+    address[] memory tokenCont,
+    address[] memory seller
+  ) public nonReentrant returns(bool){
 
     address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
 
-    for (uint i;i<tokenId.length;i++) {
-      uint tradeId;
-      if (blindOpenStorage.length>=1) {
-        tradeId = blindOpenStorage[blindOpenStorage.length-1];
+      for (uint i; i< itemId.length; i++) {
+      require(ICollections(collsAdd).canOfferToken(tokenCont[i]),"Unknown token!");
+      require (amount[i] > 0,"Amount needs to be > 0");
+      
+      IERC20 tokenContract = IERC20(tokenCont[i]);
+      uint256 allowance = tokenContract.allowance(msg.sender, address(this));
+      require(allowance >= amount[i], "Check the token allowance");
+      (tokenContract).transferFrom(msg.sender, (address(this)), amount[i]);
+
+      uint offerId;
+      uint len = openStorage.length;
+      if (len>=1) {
+        offerId = openStorage[len-1];
+        _remove(0);
+      } else {
+        _offerIds.increment();
+        offerId = _offerIds.current();
+      }
+      idToMktOffer[offerId] = Offer(true, offerId, itemId[i], amount[i], tokenCont[i], payable(msg.sender), seller[i]);
+      marketIdToOfferId[itemId[i]] = offerId;
+      emit Offered(
+        offerId, 
+        itemId[i],
+        seller[i],
+        payable(msg.sender),
+        amount[i]);
+      }
+    return true;
+  }
+
+  ///@notice
+  /*~~~> 
+    Public function to enter blind offer for specific or collection-wide NFT(s)
+  <~~~*/
+  ///@dev
+  /*~~~>
+    isSpecific: (true) if the offer is for a specific NFT, else false;
+    amount1155: how many 1155 desired?
+    tokenId: Id of specific NFT offered in exchange for ERC20;
+    amount: amount of ERC20 tokens to offer;
+    tokenCont: token contract address of the offer;
+    collection: Collection address of the desired NFT(s)
+  <~~~*/
+  function enterBlindOffer(
+    bool[] memory isSpecific,
+    uint[] memory amount1155,
+    uint[] memory tokenId,
+    uint[] memory amount,
+    address[] memory tokenCont,
+    address[] memory collection
+  ) public nonReentrant{
+    for (uint i; i<tokenCont.length;i++){
+      
+      address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
+
+      uint256 allowance = IERC20(tokenCont[i]).allowance(msg.sender, address(this));
+      require(allowance >= amount[i], "Check the token allowance");
+      require(ICollections(collsAdd).isRestricted(collection[i]) == false);
+      IERC20(tokenCont[i]).transferFrom(msg.sender, (address(this)), amount[i]);
+
+      uint offerId;
+      uint len = blindOpenStorage.length;
+      if (len>=1) {
+        offerId = blindOpenStorage[len-1];
         _remove(1);
       } else {
-        _blindTrades.increment();
-        tradeId = _blindTrades.current();
+        _blindOfferIds.increment();
+        offerId = _blindOfferIds.current();
       }
-      require(ICollections(collsAdd).isRestricted(nftContract[i]) == false);
-      if (is1155[i]){
-        IERC1155(nftContract[i]).safeTransferFrom(msg.sender, address(this), tokenId[i], amount1155[i], "");
-      } else {
-        transferFromERC721(nftContract[i], tokenId[i], address(this));
-        approveERC721(nftContract[i], address(this), tokenId[i]);
-      }
-      idToBlindTrade[tradeId] = BlindTrade(is1155[i], true, isSpecific[i], wantedId[i], tradeId, tokenId[i], amount1155[i], nftContract[i], wantContract[i], payable(msg.sender));
-      emit BlindTradeEntered(
-          is1155[i],
-          isSpecific[i],
-          wantedId[i],
-          tradeId, 
-          tokenId[i],
-          amount1155[i],
-          nftContract[i], 
-          wantContract[i],
-          msg.sender);
-      }
+      idToBlindOffer[offerId] = BlindOffer(isSpecific[i], amount1155[i], tokenId[i], offerId, amount[i], tokenCont[i], collection[i], payable(msg.sender));
+      emit BlindOffered(
+        isSpecific[i],
+        tokenId[i],
+        offerId,
+        amount[i],
+        payable(msg.sender),
+        tokenCont[i]
+      );
+    }
+
   }
 
   ///@notice
-  //*~~~>Public function to withdraw trade
-  ///@dev
   /*~~~>
-    isBlind: (true) if trade is blind;
-    itemId: Market internal storage id;
-    tradeId: internal this storade id;
+    Public offer to accept blind offer in exchange for NFT;
+    If specific, only the NFT owner can call.
+      else, any collection holder can accept the offer;
   <~~~*/
-  ///@return Bool
-  function withdrawTrade(
-      bool[] memory isBlind,
-      uint[] memory itemId,
-      uint[] memory tradeId
+  ///@dev 
+  /*~~~>
+    
+    blindOfferId: internal Id of blind offer;
+    tokenId: token Id of the NFT to swap;
+    offerId: offer Id if the item is listed between the time the offer was made and accepted;
+    listedId: listed items Id from the marketplace;
+    isListed: (true) if item is listed on the marketplace;
+    is1155: (true) if NFT desired is ERC1155;
+  <~~~*/
+  function acceptBlindOffer(
+    uint[] memory blindOfferId,
+    uint[] memory tokenId,
+    uint[] memory offerId,
+    uint[] memory listedId,
+    bool[] memory isListed,
+    bool[] memory is1155
   ) public nonReentrant returns(bool){
-    for (uint i; i<itemId.length; i++) {
-      if(isBlind[i]){
-      BlindTrade memory trade = idToBlindTrade[tradeId[i]];
-      require(trade.isActive == true, "Item is not listed for trade...");
-      if (trade.trader != msg.sender) revert();
-      if ( trade.is1155 ){
-        IERC1155(trade.nftCont).safeTransferFrom(address(this), trade.trader, trade.tokenId, trade.amount1155, "");
+
+    address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
+    address mrktAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
+
+    uint balance = IERC721(IRoleProvider(roleAdd).fetchAddress(NFTADD)).balanceOf(msg.sender);
+    for (uint i; i<blindOfferId.length;i++){
+      BlindOffer memory offer = idToBlindOffer[blindOfferId[i]];
+      IERC20 tokenContract = IERC20(offer.tokenCont);
+      if(balance<1){
+        /// Calculate fee and send to rewards contract
+        uint256 saleFee = calcFee(offer.amount);
+        uint256 userAmnt = offer.amount.sub(saleFee);
+        /// send (saleFee) to rewards contract
+        IRewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
+        (tokenContract).transfer(rewardsAdd, saleFee);
+         /// send (offerAmount - saleFee) to user  
+        (tokenContract).transfer(payable(msg.sender), userAmnt);
       } else {
-        transferERC721(trade.nftCont, trade.trader, trade.tokenId);
+        (tokenContract).transfer(payable(msg.sender), offer.amount);
       }
-      blindOpenStorage.push(tradeId[i]);
-      idToBlindTrade[tradeId[i]] = BlindTrade(false, false, false, 0, trade.tradeId, 0, 0, address(0x0), address(0x0), address(0x0));
-      emit TradeWithdrawn(
-          false,
-          itemId[i], 
-          tradeId[i],  
-          trade.tokenId,
-          trade.nftCont, 
-          trade.trader
-          );
-      } else {
-      Trade memory trade = idToNftTrade[tradeId[i]];
-      require(trade.tradeId > 0, "Item is not listed for trade...");
-      if (trade.trader != msg.sender) revert();
-      if ( trade.is1155 ){
-        IERC1155(trade.nftCont).safeTransferFrom(address(this), payable(msg.sender), trade.tokenId, trade.amount1155, "");
-      } else {
-        transferERC721(trade.nftCont, trade.trader, trade.tokenId);
+      if(offer.isSpecific){
+        require(tokenId[i]==offer.tokenId,"Wrong item!");
       }
-      openStorage.push(tradeId[i]);
-      marketIdToTradeId[itemId[i]] = 0;
-      idToNftTrade[tradeId[i]] = Trade(false, 0, trade.tradeId, 0, 0, address(0x0), payable(0x0), address(0x0));
-      
-      emit TradeWithdrawn(
-          false,
-          itemId[i], 
-          tradeId[i],  
-          trade.tokenId,
-          trade.nftCont, 
-          trade.trader
-          );
+      if(isListed[i]){
+        INFTMarket(mrktAdd).transferNftForSale(offer.offerer, listedId[i]);
+      } else {
+        if (is1155[i]){
+          IERC1155(offer.collectionOffer).safeTransferFrom(address(this), msg.sender, tokenId[i], offer.amount1155, "");
+        } else {
+          transferFromERC721(offer.collectionOffer, tokenId[i], offer.offerer);
         }
       }
-      return true;
-  }
-
-  ///@notice
-  //*~~~>Function to refund trade if the item sells
-  ///@dev
-  /*~~~>
-    itemId: Market item id internal storage;
-    tradeId: trade item id for this internal storage;
-  <~~~*/
-  ///@return Bool
-  function refundTrade(uint itemId, uint tradeId) public hasContractAdmin returns(bool){
-    Trade memory trade = idToNftTrade[tradeId];
-    if ( trade.is1155 ){
-      IERC1155(trade.nftCont).safeTransferFrom(address(this), trade.trader, trade.tokenId, trade.amount1155, "");
-    } else {
-      transferERC721(trade.nftCont, trade.trader, trade.tokenId);
+      blindOpenStorage.push(offerId[i]);
+      idToBlindOffer[offerId[i]] = BlindOffer(false, 0, 0, offerId[i], 0, address(0x0), address(0x0), payable(0x0));
     }
-    idToNftTrade[tradeId] = Trade(false, 0, tradeId, 0, 0, address(0x0), payable(0x0), address(0x0));
-    openStorage.push(tradeId);
-    emit TradeUpdated(
-       trade.is1155,
-       false,
-       itemId, 
-       tradeId, 
-       trade.tokenId,
-       trade.nftCont, 
-       trade.trader,
-       trade.seller
-      );
     return true;
   }
 
   ///@notice
-  //*~~~>Internal function to refund trade if the item sells
+  /*~~~>
+    public function to accept an offer for a listed NFT on the market
+  <~~~*/
   ///@dev
-  /*~~~> The contract will throw an access control error if not done internally
-    itemId: Market item id internal storage;
-    tradeId: trade item id for this internal storage;
-  <~~~*/
-  function _refundTradeFromSale(uint itemId, uint tradeId) internal {
-    Trade memory trade = idToNftTrade[tradeId];
-    if ( trade.is1155 ){
-      IERC1155(trade.nftCont).safeTransferFrom(address(this), trade.trader, trade.tokenId, trade.amount1155, "");
-    } else {
-      transferERC721(trade.nftCont, trade.trader, trade.tokenId);
-    }
-    idToNftTrade[tradeId] = Trade(false, 0, tradeId, 0, 0, address(0x0), payable(0x0), address(0x0));
-    openStorage.push(tradeId);
-    emit TradeUpdated(
-       trade.is1155,
-       false,
-       itemId, 
-       tradeId, 
-       trade.tokenId,
-       trade.nftCont, 
-       trade.trader,
-       trade.seller
-      );
-  }
-
-  ///@notice
   /*~~~>
-    Public function to accept trade
-  <~~~*/
-  ///@notice
-  /*~~~>
-    itemId: Market item Id internal storage;
-    tradeId: Id of trade for internal storage;
+    offerId: Internal id of offer;
   <~~~*/
   ///@return Bool
-  function acceptTrade(
-      uint[] calldata itemId,
-      uint[] calldata tradeId
-  ) public nonReentrant returns(bool){
-    
-    address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
+  function acceptOfferForNft(uint[] calldata offerId) public nonReentrant returns(bool){
+
+    address mrktNft = IRoleProvider(roleAdd).fetchAddress(NFTADD);
+    address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
     address bidsAdd = IRoleProvider(roleAdd).fetchAddress(BIDS);
-    address offersAdd = IRoleProvider(roleAdd).fetchAddress(OFFERS);
-    for(uint i; i<itemId.length;i++) {
-      Trade memory trade = idToNftTrade[tradeId[i]];
-      require(msg.sender == trade.seller,"Not Owner");
-      if ( trade.is1155 ){
-        IERC1155(trade.nftCont).safeTransferFrom(address(this), trade.seller, trade.tokenId, trade.amount1155, "");
+    address tradesAdd = IRoleProvider(roleAdd).fetchAddress(TRADES);
+    address mrktAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
+
+    uint balance = IERC721(mrktNft).balanceOf(msg.sender);
+    for (uint i; i<offerId.length; i++) {
+      Offer memory offer = idToMktOffer[offerId[i]];
+      if (msg.sender != offer.seller) revert();
+      IERC20 tokenContract = IERC20(offer.tokenCont);
+      if(balance<1){
+        /// Calculate fee and send to rewards contract
+        uint256 saleFee = calcFee(offer.amount);
+        uint256 userAmnt = offer.amount.sub(saleFee);
+       IRewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
+        (tokenContract).transfer(rewardsAdd, saleFee);
+        (tokenContract).transfer(payable(offer.seller), userAmnt);
       } else {
-        transferERC721(trade.nftCont, trade.seller, trade.tokenId);
+        (tokenContract).transfer(payable(offer.seller), offer.amount);
       }
-      /*~~~> Check for the case where there is a trade and refund it. <~~~*/
-      uint offerId = IOffers(offersAdd).fetchOfferId(itemId[i]);
-      if (offerId > 0) {
-      /*~~~> Kill offer and refund amount <~~~*/
-        //*~~~> Call the contract to refund the NFT offered for trade
-        IOffers(offersAdd).refundOffer(itemId[i], offerId);
-      }
-      uint bidId = IBids(bidsAdd).fetchBidId(itemId[i]);
-      if (bidId>0) {
+      if (IBids(bidsAdd).fetchBidId(offer.itemId) > 0) {
       /*~~~> Kill bid and refund bidValue <~~~*/
         //~~~> Call the contract to refund the ETH offered for a bid
-        IBids(bidsAdd).refundBid(bidId);
+        IBids(bidsAdd).refundBid(IBids(bidsAdd).fetchBidId(offer.itemId));
       }
-       openStorage.push(tradeId[i]);
-       marketIdToTradeId[itemId[i]] = 0;
-       idToNftTrade[tradeId[i]] = Trade(
-           false,
-           0,
-           tradeId[i],
-           0,
-           0,
-           address(0x0),
-           payable(0x0),
-           address(0x0)
-       );
-      Trade[] memory trades = fetchTradesById(itemId[i]);
-      for(uint j; j<trades.length;j++){
-        _refundTradeFromSale(trades[i].itemId, trades[i].tradeId);
+      /*~~~> Check for the case where there is an offer and refund it. <~~~*/
+      if (ITrades(tradesAdd).fetchTradeId(offer.itemId) > 0) {
+      /*~~~> Kill offer and refund amount <~~~*/
+        //*~~~> Call the contract to refund the ERC20 offered for trade
+        ITrades(tradesAdd).refundTrade(offer.itemId, ITrades(tradesAdd).fetchTradeId(offer.itemId));
       }
-       INFTMarket(marketAdd).transferNftForSale(trade.trader, itemId[i]);
-       emit TradeAccepted(
-           trade.is1155,
-           false,
-           itemId[i], 
-           tradeId[i], 
-           trade.tokenId,
-           trade.nftCont,
-           trade.trader, 
-           trade.seller
-           );
+      marketIdToOfferId[offer.itemId] = 0;
+      openStorage.push(offerId[i]);
+      idToMktOffer[offerId[i]] = Offer(false, offerId[i], 0, 0, address(0x0), payable(0x0), address(0x0));
+     INFTMarket(mrktAdd).transferNftForSale(offer.offerer, offer.itemId);
+      emit OfferAccepted(
+        offerId[i],
+        offer.itemId,
+        offer.offerer,
+        offer.seller
+      );
     }
     return true;
-    }
+  }
 
   ///@notice
   /*~~~>
-    Public function to accept trade
+    Public function to withdraw offers that only offer owners can call
   <~~~*/
-  ///@notice
+  ///@dev
   /*~~~>
-    tradeId: Id of trade for internal storage;
-    tokenId: Id of the token if specific;
-    listedId: (0) if the item is not listed for sale on the marketplace contract;
+    offerId: internal Id of the offer item
+    isBlind: external bool needed to determine type of offer
   <~~~*/
-  ///@return Bool
-    function acceptBlindTrade(
-      uint[] memory tradeId,
-      uint[] memory tokenId,
-      uint[] memory listedId
-  ) public whenNotPaused nonReentrant returns(bool){
-    address marketAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
-    for(uint i; i<tradeId.length;i++) {
-      uint j = tradeId[i];
-      BlindTrade memory trade = idToBlindTrade[j];
-            //*~~~> Disallow random acceptances if specific
-      if(trade.isSpecific){
-          require(tokenId[i]==trade.wantedId,"Wrong item!");
-        }
-      if (trade.is1155){
-        if(listedId[i]==0){
-          IERC1155(trade.wantCont).safeTransferFrom(address(msg.sender), trade.trader, tokenId[i], trade.amount1155, "");
-        } else {
-          INFTMarket(marketAdd).transferNftForSale(trade.trader, listedId[i]);
-        }
-      } else {
-        require(IERC721(trade.nftCont).ownerOf(tokenId[i]) == msg.sender, "Not the token owner!");
-        if(listedId[i]==0){
-          transferERC721(trade.nftCont, msg.sender, trade.tokenId);
-        } else {
-          INFTMarket(marketAdd).transferNftForSale(trade.trader, listedId[i]);
-        }
+  function withdrawOffer(uint[] memory offerId, bool[] memory isBlind) public nonReentrant returns(bool){
+    for (uint i; i< offerId.length; i++) {
+    if (isBlind[i]){
+      BlindOffer memory offer = idToBlindOffer[offerId[i]];
+      ///*~~~> Require the message sender to be the offerer
+      if (offer.offerer != msg.sender) revert();
+      IERC20 tokenContract = IERC20(offer.tokenCont);
+      (tokenContract).transfer(payable(offer.offerer), offer.amount);
+      /// push old offerId to blind open storage
+      blindOpenStorage.push(offerId[i]);
+      idToBlindOffer[offerId[i]] = BlindOffer(false, 0, 0, offerId[i], 0, address(0x0), address(0x0), payable(0x0));
+      emit BlindOfferWithdrawn(
+        offerId[i],
+        msg.sender);
+    } else {
+      Offer memory offer = idToMktOffer[offerId[i]];
+      if (offer.offerer != msg.sender) revert();
+      IERC20 tokenContract = IERC20(offer.tokenCont);
+      (tokenContract).transfer(payable(offer.offerer), offer.amount);
+      /// push old offerId to open storage
+      openStorage.push(offerId[i]);
+      /// reset offerId
+      marketIdToOfferId[offer.itemId] = 0;
+      idToMktOffer[offerId[i]] = Offer(false, offerId[i], 0, 0, address(0x0), payable(0x0), address(0x0));
+      emit OfferWithdrawn(
+        offerId[i], 
+        offer.itemId,
+        msg.sender);
       }
-       blindOpenStorage.push(tradeId[i]);
-       idToBlindTrade[tradeId[i]] = BlindTrade(
-           false,
-           false,
-           false,
-           0,
-           tradeId[i],
-           0,
-           0,
-           payable(0x0),
-           address(0x0),
-           address(0x0)
-       );
-       emit TradeAccepted(
-           trade.is1155,
-           false,
-           0, 
-           tradeId[i], 
-           trade.tokenId,
-           trade.nftCont, 
-           trade.trader,
-           msg.sender
-           );
-           
     }
     return true;
-    }
-
-  /// @notice 
-    /*~~~> 
-      Internal function to transferFrom ERC721 NFTs, including crypto kitties/punks
-    <~~~*/
-  /// @dev
-    /*~~~>
-      assetAddr: address of the token to be transfered;
-      tokenId: Id of the token to be transfered;
-      to: address of recipient;
-    <~~~*/
-  function transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
-    address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
-    address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
-    bytes memory data;
-    if (assetAddr == kitties) {
-        // Cryptokitties.
-        data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, to, tokenId);
-    } else if (assetAddr == punks) {
-        // CryptoPunks.
-        // Fix here for frontrun attack. Added in v1.0.2.
-        bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
-        (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
-        (address nftOwner) = abi.decode(result, (address));
-        require(checkSuccess && nftOwner == msg.sender, "Not the NFT owner");
-        data = abi.encodeWithSignature("transferPunk(address,uint256)", msg.sender, tokenId);
-    } else {
-        // Default.
-        // We push to the vault to avoid an unneeded transfer.
-        data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, to, tokenId);
-    }
-    (bool success, bytes memory resultData) = address(assetAddr).call(data);
-    require(success, string(resultData));
   }
 
-  /// @notice 
-    /*~~~> 
-      Internal function to approve ERC721 NFTs for transfer, including crypto kitties/punks
-    <~~~*/
-  /// @dev
-    /*~~~>
-      assetAddr: address of the token to be transfered;
-      to: address of recipient;
-      tokenId: Id of the token to be transfered;
-    <~~~*/
-  function approveERC721(address assetAddr, address to, uint256 tokenId) internal virtual {
-    address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
-    address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
-    bytes memory data;
-    if (assetAddr == kitties) {
-        // // Cryptokitties.
-        // No longer needed to approve with pushing.
-        // data = abi.encodeWithSignature("approve(address,uint256)", to, tokenId);
-        return;
-    } else if (assetAddr == punks) {
-        // CryptoPunks.
-        data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", tokenId, 0, to);
-    } else {
-      // No longer needed to approve with pushing.
-      return;
-    }
-    (bool success, bytes memory resultData) = address(assetAddr).call(data);
-    require(success, string(resultData));
+  ///@notice 
+  /*~~~>
+    Only Contract function used for manually refunding offers when items sell
+  <~~*/
+  ///@dev
+  /*~~~>
+    itemId: Market storage Id of the item to be refunded
+    offerId: Internal storage Id of the offer
+  <~~~*/
+  function refundOffer(uint itemId, uint offerId) public nonReentrant hasContractAdmin returns(bool){
+      Offer memory _offer = idToMktOffer[itemId];
+      /// verifying that the refunded offer is the correct one
+      require(_offer.offerId == offerId);
+      IERC20 tokenContract = IERC20(_offer.tokenCont);
+      (tokenContract).transfer(payable(_offer.offerer), _offer.amount);
+      /// recycle old offerId
+      openStorage.push(offerId);
+      /// reset internal memory of itemId
+      marketIdToOfferId[itemId] = 0;
+      idToMktOffer[offerId] = Offer(false, offerId, 0, 0, address(0x0), payable(address(0x0)), address(0x0));
+      emit OfferRefunded(offerId, itemId, _offer.offerer);
+    return true;
   }
-  
+
   /// @notice 
     /*~~~> 
       Internal function to transfer ERC721 NFTs, including crypto kitties/punks
@@ -640,113 +523,35 @@ contract MarketTrades is ReentrancyGuard, Pausable {
   /// @dev
     /*~~~>
       assetAddr: address of the token to be transfered;
-      to: address of the recipient;
       tokenId: Id of the token to be transfered;
     <~~~*/
-  function transferERC721(address assetAddr, address to, uint256 tokenId) internal virtual {
+function transferFromERC721(address assetAddr, uint256 tokenId, address to) internal virtual {
     address kitties = 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d;
     address punks = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
     bytes memory data;
     if (assetAddr == kitties) {
-        // Changed in v1.0.4.
-        data = abi.encodeWithSignature("transfer(address,uint256)", to, tokenId);
+        //*~~~> Cryptokitties.
+        data = abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, to, tokenId);
     } else if (assetAddr == punks) {
-        // CryptoPunks.
-        data = abi.encodeWithSignature("transferPunk(address,uint256)", to, tokenId);
+        //*~~~> CryptoPunks.
+        bytes memory punkIndexToAddress = abi.encodeWithSignature("punkIndexToAddress(uint256)", tokenId);
+        (bool checkSuccess, bytes memory result) = address(assetAddr).staticcall(punkIndexToAddress);
+        (address nftOwner) = abi.decode(result, (address));
+        require(checkSuccess && nftOwner == msg.sender, "Not the NFT owner");
+        data = abi.encodeWithSignature("transferPunk(address,uint256)", msg.sender, tokenId);
     } else {
-        // Default.
-        data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", address(this), to, tokenId);
+        //*~~~> Default.
+        //*~~~> We push to avoid an unneeded transfer.
+        data = abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", msg.sender, to, tokenId);
     }
-    (bool success, bytes memory returnData) = address(assetAddr).call(data);
-    require(success, string(returnData));
-  }
-
-  ///@notice
-  /* Public read functions for internal state */
-  function fetchTrades() public view returns (Trade[] memory) {
-    uint itemCount = _trades.current();
-    uint currentIndex;
-    Trade[] memory trades = new Trade[](itemCount);
-    for (uint i; i < itemCount; i++) {
-      if (idToNftTrade[i + 1].tradeId > 0) {
-        Trade storage currentItem = idToNftTrade[i + 1];
-         trades[currentIndex] = currentItem;
-         currentIndex++;
-      }
-    }
-    return trades;
-  }
-  function fetchUserTrades(address user) public view returns (Trade[] memory) {
-    uint itemCount = _trades.current();
-    uint currentIndex;
-    Trade[] memory trades = new Trade[](itemCount);
-    for (uint i; i < itemCount; i++) {
-      if (idToNftTrade[i + 1].trader == user) {
-        Trade storage currentItem = idToNftTrade[i + 1];
-         trades[currentIndex] = currentItem;
-         currentIndex++;
-      }
-    }
-    return trades;
-  }
-  function fetchBlindTrades() public view returns (BlindTrade[] memory) {
-    uint itemCount = _blindTrades.current();
-    uint currentIndex;
-    BlindTrade[] memory trades = new BlindTrade[](itemCount);
-    for (uint i; i < itemCount; i++) {
-      if (idToBlindTrade[i + 1].isActive) {
-        BlindTrade storage currentItem = idToBlindTrade[i + 1];
-         trades[currentIndex] = currentItem;
-         currentIndex++;
-      }
-    }
-    return trades;
-  }
-  function fetchUserBlindTrades(address user) public view returns (BlindTrade[] memory) {
-    uint itemCount = _blindTrades.current();
-    uint currentIndex;
-    BlindTrade[] memory trades = new BlindTrade[](itemCount);
-    for (uint i; i < itemCount; i++) {
-      if (idToBlindTrade[i + 1].trader == user) {
-        BlindTrade storage currentItem = idToBlindTrade[i + 1];
-         trades[currentIndex] = currentItem;
-         currentIndex++;
-      }
-    }
-    return trades;
-  }
-
-  function fetchTradesById(uint itemId) public view returns (Trade[] memory) {
-    uint itemCount = _trades.current();
-    uint currentIndex;
-    Trade[] memory trades = new Trade[](itemCount);
-    for (uint i; i < itemCount; i++) {
-      if (idToNftTrade[i + 1].tradeId > 0) {
-          if (idToNftTrade[i + 1].itemId == itemId) {
-            Trade storage currentItem = idToNftTrade[i + 1];
-            trades[currentIndex] = currentItem;
-            currentIndex++;
-        }
-      }
-    }
-    return trades;
-  }
-
-  function fetchTrade(uint itemId) public view returns (Trade memory item) {
-    uint _id = marketIdToTradeId[itemId];
-    return idToNftTrade[_id];
-  }
-
-  function fetchTradeId(uint itemId) public view returns(uint tradeId){
-    uint _id = marketIdToTradeId[itemId];
-    return _id;
+    (bool success, bytes memory resultData) = address(assetAddr).call(data);
+    require(success, string(resultData));
   }
 
   /// @notice 
   /*~~~> 
     Internal function for removing elements from an array
     Only used for internal storage array index recycling
-
       In order to reduce storage array size of listed items 
         while maintaining specific enumerable bidId's, 
         any sold or removed item spots are re-used by referring to their index,
@@ -757,11 +562,80 @@ contract MarketTrades is ReentrancyGuard, Pausable {
   <~~~*/
   function _remove(uint store) internal {
       if (store==0){
-      openStorage.pop();
+        openStorage.pop();
       } else if (store==1){
-      blindOpenStorage.pop();
+        blindOpenStorage.pop();
       }
     }
+
+  ///@notice //*~~~> Public read function of internal state
+  function fetchOffers() public view returns (Offer[] memory) {
+    uint itemCount = _offerIds.current();
+    Offer[] memory items = new Offer[](itemCount);
+    for (uint i; i < itemCount; i++) {
+      if (idToMktOffer[i + 1].isActive == true) {
+        Offer storage currentItem = idToMktOffer[i + 1];
+        items[i] = currentItem;
+      }
+    }
+  return items;
+  }
+
+  ///@notice //*~~~> Public read function of internal state
+  function fetchOffersByItemId(uint itemId) public view returns (Offer[] memory) {
+    uint itemCount = _offerIds.current();
+    Offer[] memory items = new Offer[](itemCount);
+    for (uint i; i < itemCount; i++) {
+      if (idToMktOffer[i + 1].isActive == true) {
+        if (idToMktOffer[i + 1].itemId == itemId){
+          Offer storage currentItem = idToMktOffer[i + 1];
+          items[i] = currentItem;
+        }
+      }
+    }
+  return items;
+  }
+
+  function fetchOffersByOfferer(address user) public view returns (Offer[] memory) {
+    uint itemCount = _offerIds.current();
+    Offer[] memory items = new Offer[](itemCount);
+    for (uint i; i < itemCount; i++) {
+      if (idToMktOffer[i + 1].isActive == true) {
+        if (idToMktOffer[i + 1].offerer == user){
+          Offer storage currentItem = idToMktOffer[i + 1];
+          items[i] = currentItem;
+        }
+      }
+    }
+  return items;
+  }
+
+  function fetchBlindOffers() public view returns (BlindOffer[] memory) {
+    uint itemCount = _blindOfferIds.current();
+    BlindOffer[] memory items = new BlindOffer[](itemCount);
+    for (uint i; i < itemCount; i++) {
+      BlindOffer storage currentItem = idToBlindOffer[i + 1];
+      items[i] = currentItem;
+    }
+  return items;
+  }
+
+  function fetchBlindOffersByOfferer(address user) public view returns (BlindOffer[] memory) {
+    uint itemCount = _blindOfferIds.current();
+    BlindOffer[] memory items = new BlindOffer[](itemCount);
+    for (uint i; i < itemCount; i++) {
+      if (idToBlindOffer[i + 1].offerer == user){
+        BlindOffer storage currentItem = idToBlindOffer[i + 1];
+        items[i] = currentItem;
+      }
+    }
+  return items;
+  }
+
+  function fetchOfferId(uint itemId) public view returns (uint) {
+    uint _id = marketIdToOfferId[itemId];
+    return _id;
+  }
 
   ///@notice DEV operations for emergency functions
   function pause() public hasDevAdmin {
@@ -777,17 +651,5 @@ contract MarketTrades is ReentrancyGuard, Pausable {
   receive() external payable {
     payable(roleAdd).transfer(msg.value);
       emit FundsForwarded(msg.value, msg.sender, roleAdd);
-  }
-  
-  function onERC1155Received(address, address, uint256, uint256, bytes memory) public virtual returns (bytes4) {
-        return this.onERC1155Received.selector;
-    }
-  function onERC721Received(
-      address, 
-      address, 
-      uint256, 
-      bytes memory
-    )external pure returns(bytes4) {
-        return bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
   }
 }
