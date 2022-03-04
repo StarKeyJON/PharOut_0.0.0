@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT
+
+/*~~~> PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,6 +56,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
+ 
 pragma solidity  0.8.12;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
@@ -63,16 +65,12 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-
 import "./interfaces/ICollections.sol";
 import "./interfaces/IEscrow.sol";
 import "./interfaces/INFTMarket.sol";
 import "./interfaces/IRoleProvider.sol";
 import "./interfaces/IRewardsController.sol";
 
-/*~~~>
-Interface declarations for upgradable contracts
-<~~~*/
 interface IERC20 {
   function balanceOf(address account) external view returns (uint256);
   function allowance(address owner, address spender) external view returns (uint256);
@@ -81,7 +79,7 @@ interface IERC20 {
   event Transfer(address indexed from, address indexed to, uint256 value);
 }
 
-contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
+contract MarketOffers is ReentrancyGuard, Pausable {
   using SafeMath for uint;
   using Counters for Counters.Counter;
   //*~~~> counter increments NFTs Offers
@@ -421,7 +419,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
         /// Calculate fee and send to rewards contract
         uint256 saleFee = calcFee(offer.amount);
         uint256 userAmnt = offer.amount.sub(saleFee);
-        IRewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
+       IRewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
         (tokenContract).transfer(rewardsAdd, saleFee);
         (tokenContract).transfer(payable(offer.seller), userAmnt);
       } else {
@@ -441,7 +439,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
       marketIdToOfferId[offer.itemId] = 0;
       openStorage.push(offerId[i]);
       idToMktOffer[offerId[i]] = Offer(false, offerId[i], 0, 0, address(0x0), payable(0x0), address(0x0));
-      INFTMarket(mrktAdd).transferNftForSale(offer.offerer, offer.itemId);
+     INFTMarket(mrktAdd).transferNftForSale(offer.offerer, offer.itemId);
       emit OfferAccepted(
         offerId[i],
         offer.itemId,
