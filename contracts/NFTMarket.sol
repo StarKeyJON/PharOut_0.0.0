@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT
+
+/*~~~> PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,7 +56,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity 0.8.12;
+
+pragma solidity  0.8.12;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -63,25 +65,18 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./interfaces/ICollections.sol";
 import "./interfaces/IEscrow.sol";
 import "./interfaces/INFTMarket.sol";
 import "./interfaces/IRewardsController.sol";
 import "./interfaces/IRoleProvider.sol";
 
-/*~~~>
-Interface declarations for upgradable contracts
-<~~~*/
-interface IERC721 {
-  function balanceOf(address owner) external view returns(uint);
-  function setApprovalForAll(address operator, bool approved) external;
-}
 interface IERC20 {
   function transfer(address to, uint value) external returns (bool);
 }
 
-contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
+contract NFTMarket is ReentrancyGuard, Pausable {
   using SafeMath for uint256;
   using Counters for Counters.Counter;
 
@@ -311,6 +306,8 @@ contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
       if (addressToUserBal[msg.sender]==0){
         //*~~~> If not, remove them from claims allowance
           IRewardsController(rewardsAdd).setUser(false, msg.sender);
+        } else { //*~~~> Allow claims
+          IRewardsController(rewardsAdd).setUser(true, msg.sender);
         }
       return true;
   }
@@ -377,9 +374,13 @@ contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
       emit ItemBought(itemId[i], it.tokenId, it.nftContract, it.seller, msg.sender);
       openStorage.push(itemId[i]);
       addressToUserBal[it.seller] = addressToUserBal[it.seller]-1;
+      //*~~~> Check to see if user has any remaining items listed after iteration
       if (addressToUserBal[it.seller]==0){
-        IRewardsController(rewardsAdd).setUser(false, it.seller);
-      }
+        //*~~~> If not, remove them from claims allowance
+          IRewardsController(rewardsAdd).setUser(false, it.seller);
+        } else { //*~~~> Allow claims
+          IRewardsController(rewardsAdd).setUser(true, it.seller);
+        }
     }
     return true;
   }
