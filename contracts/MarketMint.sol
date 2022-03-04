@@ -57,7 +57,7 @@
 
  <~~~*/
 
-pragma solidity 0.8.12;
+pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -88,9 +88,9 @@ contract Mint is ReentrancyGuard, Pausable {
   Counters.Counter private _redemptionERC20;
 
   // For keeping track of marketplace NFT counts as more are created and redeemed
-  uint public totalNfts;
   uint public nftsRemaining;
   uint[] public availableNfts;
+  uint[] public tokensClaimed;
 
   address public roleAdd;
 
@@ -208,19 +208,17 @@ contract Mint is ReentrancyGuard, Pausable {
     /// Execute transfer
     tokenContract.transferFrom(msg.sender, rewardsAddress, token.redeemAmount);
     
+    /// Keeping track of total claimed
+    
     uint256 nftId = _nftsRedeemed.current();
     /// Using the new ID as a nonce to generate a random tokenId from the available NFTs
     uint tokenId = getQuasiRandom(nftId);
     MarketNFT(nftAddress).safeMint(msg.sender, tokenId);
     _idToNft[nftId] = NFT(nftId, tokenId, nftAddress);
-    ///Keeping track of total claimed
     _nftsRedeemed.increment();
-
-    bool depositSuccess = IRewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress);
-    require(depositSuccess);
-
-    bool hodlerSuccess = IRewardsController(rewardsAddress).createNftHodler(nftId);
-    require(hodlerSuccess);
+    tokensClaimed.push(tokenId);
+    require(IRewardsController(rewardsAddress).depositERC20Rewards(token.redeemAmount, token.contractAddress));
+    require(IRewardsController(rewardsAddress).createNftHodler(nftId));
 
     emit nftClaimed(nftId, msg.sender);
     return true;
