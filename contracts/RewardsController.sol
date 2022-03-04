@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT
+
+/*~~~>  PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,7 +56,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  0.8.12;
+ 
+pragma solidity  >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -65,14 +67,18 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
-import "./interfaces/IRoleProvider.sol";
-import "./interfaces/IRewardsController.sol";
-import "./interfaces/ICollections.sol";
-
+interface RoleProvider {
+  function hasTheRole(bytes32 role, address _address) external returns(bool);
+  function hasContractRole(address _address) external returns(bool);
+  function fetchAddress(bytes32 _var) external returns(address);
+}
 interface MarketMint {
   function fetchNFTsCreatedCount() external returns(uint);
 }
-contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
+interface Collections {
+  function canOfferToken(address token) external returns(bool);
+}
+contract RewardsControl is ReentrancyGuard, Pausable {
   using SafeMath for uint;
   using Counters for Counters.Counter;
 
@@ -101,6 +107,7 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
   bytes32 public constant MINT = keccak256("MINT");
 
   bytes32 public constant COLLECTION = keccak256("COLLECTION");
+  
 
   /*~~~> Open storage indexes <~~~*/
   uint[] private openStorage;
@@ -179,15 +186,15 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
   bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE"); 
   bytes32 public constant CONTRACT_ROLE = keccak256("CONTRACT_ROLE");
   modifier hasAdmin(){
-    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
+    require(RoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
     _;
   }
   modifier hasDevAdmin(){
-    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
+    require(RoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
     _;
   }
   modifier hasContractAdmin(){
-    require(IRoleProvider(roleAdd).hasContractRole(msg.sender), "DOES NOT HAVE CONTRACT ROLE");
+    require(RoleProvider(roleAdd).hasContractRole(msg.sender), "DOES NOT HAVE CONTRACT ROLE");
     _;
   }
 
@@ -285,7 +292,7 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
       userId = _users.current();
     }
     addressToId[userAddress] = userId;
-    User memory user = User(true, 0, block.timestamp, userId, userAddress);
+    User memory user = User(false, 0, block.timestamp, userId, userAddress);
     idToUser[userId] = user;
     addressToUser[userAddress] = user; 
     emit NewUser(userId, userAddress);
@@ -302,12 +309,12 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
         <~~~*/
     /// @return Bool
   function createNftHodler(uint tokenId) public hasContractAdmin nonReentrant returns(bool) {
-    address mrktNft = IRoleProvider(roleAdd).fetchAddress(NFTADD);
+    address mrktNft = RoleProvider(roleAdd).fetchAddress(NFTADD);
     _nftHodlers.increment();
     uint hodlerId = _nftHodlers.current();
     NftHodler memory hodler = NftHodler(block.timestamp, hodlerId, tokenId);
     nftIdToHodler[tokenId] = hodler;
-    idToHodler[hodlerId] = hodler; 
+    idToHodler[hodlerId] = hodler;
     emit NewUser(hodlerId, mrktNft);
     return true;
   }
@@ -342,7 +349,7 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
     Can only be called every 2 days.
   <~~~*/
   function setClaimClock() public nonReentrant {
-    address mintAdd = IRoleProvider(roleAdd).fetchAddress(MINT);
+    address mintAdd = RoleProvider(roleAdd).fetchAddress(MINT);
     uint users = fetchUserAmnt();
     uint nfts = MarketMint(mintAdd).fetchNFTsCreatedCount();
     ClaimClock memory clock = idToClock[8];
@@ -390,7 +397,7 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
         user.claims+=1;
       }
     }
-    ///*~~~> i.e. alpha: 100, delta: 98, omega:96  :
+    ///*~~~> i.e. alpha: 100, delta: 98, omega:96  ::
       ///*~~~> user.timestamp == 97, is less than delta, greater than omega, 1 or less claims, gets 1/2 full rewards
     if (user.timestamp < clock.delta && user.timestamp > clock.omega){
       if(user.claims <= 1){
@@ -411,7 +418,7 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
         user.claims+=1;
       }
     }
-    ///*~~~> i.e. alpha: 100, delta: 98, omega:96  :
+    ///*~~~> i.e. alpha: 100, delta: 98, omega:96  ::
       ///*~~~> user.timestamp == 95, is less than omega, 2 or less claims, gets 1/3 full reward
     if (user.timestamp < clock.omega && user.claims <= 2){
       uint userSplits = userEth.div(clock.howManyUsers);
@@ -436,7 +443,7 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
   function claimNFTRewards(uint nftId) public nonReentrant {
     ClaimClock memory clock = idToClock[8];
     
-    address mrktNft = IRoleProvider(roleAdd).fetchAddress(NFTADD);
+    address mrktNft = RoleProvider(roleAdd).fetchAddress(NFTADD);
 
     ///*~~~> require msg.sender to be a platform NFT holder
     require(IERC721(mrktNft).balanceOf(msg.sender) > 0, "Ineligible!");
@@ -525,8 +532,8 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
     tokenAddress: contract address of the ERC20
   <~~~*/
   /// @return Bool
-  function depositERC20Rewards(uint amount, address tokenAddress) public returns (bool){
-    require(ICollections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).canOfferToken(tokenAddress)==true);
+  function depositERC20Rewards(uint amount, address tokenAddress) public returns(bool){
+    require(Collections(RoleProvider(roleAdd).fetchAddress(COLLECTION)).canOfferToken(tokenAddress)==true);
     
     // split fee in 3 parts, 2/3 to users, 1/3 to dao
     uint partySplit = amount.div(3);
@@ -586,7 +593,7 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
     Resets claimAmounts back to 0;
   <~~~*/
   function claimDaoRewards() public nonReentrant {
-    address daoAdd = IRoleProvider(roleAdd).fetchAddress(DAO);
+    address daoAdd = RoleProvider(roleAdd).fetchAddress(DAO);
     require(msg.sender == daoAdd);
     payable(daoAdd).transfer(daoEth);
     daoEth = daoEth.sub(daoEth);
