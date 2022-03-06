@@ -211,7 +211,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     Base fee set at 2% (i.e. value * 200 / 10,000) 
     Future fees can be set by the controlling DAO 
   <~~~*/
-  function setFee(uint _fee) public hasAdmin returns (bool) {
+  function setFee(uint _fee) external hasAdmin returns (bool) {
     fee = _fee;
     return true;
   }
@@ -225,7 +225,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     devAddress: new dev;
   <~~~*/
   /// @return Bool
-  function addDev(address devAddress) public nonReentrant hasDevAdmin returns(bool) {
+  function addDev(address devAddress) external nonReentrant hasDevAdmin returns(bool) {
     uint devLen = _devs.current();
     bool added;
     for (uint i; i<devLen;i++){
@@ -256,7 +256,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     devAddress: dev to be removed;
   <~~~*/
   /// @return removed Bool
-  function removeDev(address devAddress) public hasDevAdmin nonReentrant returns(bool) {
+  function removeDev(address devAddress) external hasDevAdmin nonReentrant returns(bool) {
     uint id = addressToDevTeamId[devAddress];
     DevTeam memory _dev = idToDevTeam[id];
     idToDevTeam[id] = DevTeam(0, _dev.devId, address(0x0));
@@ -304,7 +304,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
      tokenId: NFT tokenId to track claims;
         <~~~*/
     /// @return Bool
-  function createNftHodler(uint tokenId) public hasContractAdmin nonReentrant returns(bool) {
+  function createNftHodler(uint tokenId) external hasContractAdmin nonReentrant returns(bool) {
     address mrktNft = RoleProvider(roleAdd).fetchAddress(NFTADD);
     _nftHodlers.increment();
     uint hodlerId = _nftHodlers.current();
@@ -322,7 +322,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
      userAddress: user address;
         <~~~*/
   /// @return Bool
-  function setUser(bool canClaim, address userAddress) public hasContractAdmin nonReentrant returns(bool) {
+  function setUser(bool canClaim, address userAddress) external hasContractAdmin nonReentrant returns(bool) {
     uint userId = addressToId[userAddress];
     User memory user = idToUser[userId];
     if(canClaim){
@@ -374,7 +374,8 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     User memory user = idToUser[id];
     ClaimClock memory clock = idToClock[8];
     require(user.canClaim == true, "Ineligible!");
-    uint userEthSplit = ((ethRewards / 3) * 2);
+    /// Users receives 2/3 of total rewards
+    uint userEthSplit = (ethRewards - (ethRewards / 3));
     uint userSplits = (userEthSplit / clock.howManyUsers);
     /*~~~> Distribute according to timestamp cutoff
       if user.timestamp:
@@ -389,14 +390,14 @@ contract RewardsControl is ReentrancyGuard, Pausable {
     if (user.timestamp < clock.alpha && user.timestamp > clock.delta){
       if (user.claims==0){
         payable(msg.sender).transfer(userSplits);
-        ethRewards = ethRewards - userSplits;
+        ethRewards -= userSplits;
         /// update new amount
       uint tokenLen = contractAddress.length;
       for (uint i; i < tokenLen; i++) {
         uint tokenId = addressToRewardsId[contractAddress[i]];
         RewardsToken memory toke = idToRewardsToken[tokenId];
         if(toke.tokenAmount > 0){
-          uint userErcSplits = ((toke.tokenAmount / 3) * 2);
+          uint userErcSplits = (toke.tokenAmount - (toke.tokenAmount / 3));
           uint ercSplit = (userErcSplits / clock.howManyUsers);
           IERC20(toke.tokenAddress).transfer(payable(msg.sender), ercSplit);
           /// update new amount
@@ -419,7 +420,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
         uint tokenId = addressToRewardsId[contractAddress[i]];
         RewardsToken memory toke = idToRewardsToken[tokenId];
         if(toke.tokenAmount > 0){
-          uint userErcSplits = ((toke.tokenAmount / 3) * 2);
+          uint userErcSplits = (toke.tokenAmount - (toke.tokenAmount / 3));
           uint ercSplit = ((userErcSplits / clock.howManyUsers) / 2);
           IERC20(toke.tokenAddress).transfer(payable(msg.sender), ercSplit);
           /// update new amount
@@ -441,7 +442,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
         uint tokenId = addressToRewardsId[contractAddress[i]];
         RewardsToken memory toke = idToRewardsToken[tokenId];
         if(toke.tokenAmount > 0){
-          uint userErcSplits = ((toke.tokenAmount / 3) * 2);
+          uint userErcSplits = (toke.tokenAmount - (toke.tokenAmount / 3));
           uint ercSplit = ((userErcSplits / clock.howManyUsers) / 3);
           IERC20(toke.tokenAddress).transfer(payable(msg.sender), ercSplit);
           /// update new amount
@@ -497,7 +498,7 @@ contract RewardsControl is ReentrancyGuard, Pausable {
       RewardsToken memory toke = idToRewardsToken[tokenId];
       if(toke.tokenAmount > 0) {
         adds[i] = toke.tokenAddress;
-        uint userSplit = ((toke.tokenAmount / 3) * 2);
+        uint userSplit = (toke.tokenAmount - (toke.tokenAmount / 3));
         uint ercSplit = (userSplit / clock.howManyUsers);
         amnts[i] = ercSplit;
         /// transfer token amount divided by total user amount 
