@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT
+
+/*~~~> PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,34 +56,26 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity 0.8.12;
+
+pragma solidity  0.8.7;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./interfaces/ICollections.sol";
 import "./interfaces/IEscrow.sol";
 import "./interfaces/INFTMarket.sol";
 import "./interfaces/IRewardsController.sol";
 import "./interfaces/IRoleProvider.sol";
 
-/*~~~>
-Interface declarations for upgradable contracts
-<~~~*/
-interface IERC721 {
-  function balanceOf(address owner) external view returns(uint);
-  function setApprovalForAll(address operator, bool approved) external;
-}
 interface IERC20 {
   function transfer(address to, uint value) external returns (bool);
 }
 
-contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
-  using SafeMath for uint256;
+contract NFTMarket is ReentrancyGuard, Pausable {
   using Counters for Counters.Counter;
 
   /*~~~> 
@@ -197,7 +190,7 @@ contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
   function calcFee(uint256 _value) public returns (uint256)  {
       address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
       uint fee = IRewardsController(rewardsAdd).getFee();
-      uint256 percent = (_value.mul(fee)).div(10000);
+      uint256 percent = ((_value * fee) / 10000);
       return percent;
     }
 
@@ -218,14 +211,14 @@ contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
     uint[] memory tokenId,
     uint[] memory price,
     address[] memory nftContract
-  ) public payable whenNotPaused nonReentrant returns(bool){
+  ) external payable whenNotPaused nonReentrant returns(bool){
 
     address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
     require(tokenId.length>0);
     require(tokenId.length == nftContract.length);
     uint user = addressToUserBal[msg.sender];
     if (user==0) {
-        IRewardsController(IRoleProvider(roleAdd).fetchAddress(REWARDS)).createUser(msg.sender);
+        require(IRewardsController(IRoleProvider(roleAdd).fetchAddress(REWARDS)).createUser(msg.sender));
       }
     uint tokenLen = tokenId.length;
     for (uint i;i<tokenLen;i++){
@@ -280,21 +273,21 @@ contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
       if (bidId>0) {
       /*~~~> Kill bid and refund bidValue <~~~*/
         //~~~> Call the contract to refund the ETH offered for a bid
-        IBids(bidsAdd).refundBid(bidId);
+        require(IBids(bidsAdd).refundBid(bidId));
       }
         /*~~~> Check for the case where there is a trade and refund it. <~~~*/
       uint offerId = IOffers(offersAdd).fetchOfferId(itemId[i]);
       if (offerId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the NFT offered for trade
-        IOffers(offersAdd).refundOffer(itemId[i], offerId);
+        require(IOffers(offersAdd).refundOffer(itemId[i], offerId));
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
       uint tradeId = ITrades(tradesAdd).fetchTradeId(itemId[i]);
       if (tradeId > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the ERC20 offered for trade
-        ITrades(tradesAdd).refundTrade(itemId[i], tradeId);
+        require(ITrades(tradesAdd).refundTrade(itemId[i], tradeId));
       }
       if(it.is1155){
         IERC1155(it.nftContract).safeTransferFrom(address(this), msg.sender, it.tokenId, it.amount1155, "");
@@ -305,12 +298,14 @@ contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
       idToMktItem[itemId[i]] =  MktItem(false, itemId[i], 0, 0, 0, address(0x0), payable(0x0), payable(0x0));
       emit ItemDelisted(itemId[i], it.tokenId, it.nftContract);
       //*~~~> remove count from user balances
-      addressToUserBal[msg.sender] = addressToUserBal[msg.sender]-1;
+      addressToUserBal[msg.sender] -= 1;
       }
       //*~~~> Check to see if user has any remaining items listed after iteration
       if (addressToUserBal[msg.sender]==0){
         //*~~~> If not, remove them from claims allowance
-          IRewardsController(rewardsAdd).setUser(false, msg.sender);
+          require(IRewardsController(rewardsAdd).setUser(false, msg.sender));
+        } else { //*~~~> Allow claims
+          require(IRewardsController(rewardsAdd).setUser(true, msg.sender));
         }
       return true;
   }
@@ -336,7 +331,7 @@ contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
     uint length = itemId.length;
     for (uint i; i < length; i++) {
       MktItem memory it = idToMktItem[itemId[i]];
-      prices = prices.add(it.price);
+      prices += it.price;
     }
     require(msg.value == prices);
     for (uint i; i<length; i++) {
@@ -344,29 +339,31 @@ contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
       if(balance<1){
         /*~~~> Calculating the platform fee <~~~*/
         uint256 saleFee = calcFee(it.price);
-        uint256 userAmnt = it.price.sub(saleFee);
+        uint256 userAmnt = it.price - saleFee;
         // send saleFee to rewards controller
-        IRewardsController(rewardsAdd).splitRewards{value: saleFee}(saleFee);
+        require(IRewardsController(rewardsAdd).depositEthRewards{value: saleFee}(saleFee));
         // send (listed amount - saleFee) to seller
         payable(it.seller).transfer(userAmnt);
       }
       if (IBids(bidsAdd).fetchBidId(itemId[i])>0) {
       /*~~~> Kill bid and refund bidValue <~~~*/
         //~~~> Call the contract to refund the ETH offered for a bid
-        IBids(bidsAdd).refundBid(IBids(bidsAdd).fetchBidId(itemId[i]));
+        require(IBids(bidsAdd).refundBid(IBids(bidsAdd).fetchBidId(itemId[i])));
       }
         /*~~~> Check for the case where there is a trade and refund it. <~~~*/
       if (IOffers(offersAdd).fetchOfferId(itemId[i]) > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the NFT offered for trade
-        IOffers(offersAdd).refundOffer(itemId[i], IOffers(offersAdd).fetchOfferId(itemId[i]));
+        require(IOffers(offersAdd).refundOffer(itemId[i], IOffers(offersAdd).fetchOfferId(itemId[i])));
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
       if (ITrades(tradesAdd).fetchTradeId(itemId[i]) > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the ERC20 offered for trade
-        ITrades(tradesAdd).refundTrade(itemId[i], ITrades(tradesAdd).fetchTradeId(itemId[i]));
+        require(ITrades(tradesAdd).refundTrade(itemId[i], ITrades(tradesAdd).fetchTradeId(itemId[i])));
       }
+      addressToUserBal[it.seller] -= 1;
+      emit ItemBought(itemId[i], it.tokenId, it.nftContract, it.seller, msg.sender);
       if(it.is1155){
         IERC1155(it.nftContract).safeTransferFrom(address(this), msg.sender, it.tokenId, it.amount1155, "");
         idToMktItem[itemId[i]] = MktItem(true, itemId[i], 0, 0, 0, address(0x0), payable(0x0), payable(0x0));
@@ -374,12 +371,14 @@ contract NFTMarket is ReentrancyGuard, Pausable, INFTMarket {
         transferERC721(it.nftContract, msg.sender, it.tokenId);
         idToMktItem[itemId[i]] = MktItem(false, itemId[i], 0, 0, 0, address(0x0), payable(0x0), payable(0x0));
       }
-      emit ItemBought(itemId[i], it.tokenId, it.nftContract, it.seller, msg.sender);
       openStorage.push(itemId[i]);
-      addressToUserBal[it.seller] = addressToUserBal[it.seller]-1;
+      //*~~~> Check to see if user has any remaining items listed after iteration
       if (addressToUserBal[it.seller]==0){
-        IRewardsController(rewardsAdd).setUser(false, it.seller);
-      }
+        //*~~~> If not, remove them from claims allowance
+          require(IRewardsController(rewardsAdd).setUser(false, it.seller));
+        } else { //*~~~> Allow claims
+          require(IRewardsController(rewardsAdd).setUser(true, it.seller));
+        }
     }
     return true;
   }
@@ -548,8 +547,9 @@ function transferFromERC721(address assetAddr, uint256 tokenId, address to) inte
   /*~~~>
     Only marketplace proxy contracts can call the function. 
   <~~~*/
-  function transferNftForSale(address receiver, uint itemId) public whenNotPaused hasContractAdmin {
-      _transferForSale(receiver, itemId);
+  function transferNftForSale(address receiver, uint itemId) public whenNotPaused hasContractAdmin returns(bool) {
+    _transferForSale(receiver, itemId);
+    return true;
   }
 
   ///@notice internal function to transfer NFT only this contract can call

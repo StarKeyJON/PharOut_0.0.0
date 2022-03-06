@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT 
+
+/*~~~> PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -62,32 +63,31 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  <~~~*/
-pragma solidity  >=0.8.0 <0.9.0;
+
+pragma solidity  0.8.7;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "./interfaces/IRoleProvider.sol";
-import "./interfaces/ICollections.sol";
 
-contract MarketCollections is ICollections {
+contract MarketCollections {
 
   //*~~~> Roles for designated accessibility
   bytes32 public constant PROXY_ROLE = keccak256("PROXY_ROLE"); 
   bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE"); 
   string Mess = "DOES NOT HAVE ADMIN ROLE";
   address public roleAdd;
-    
-    constructor(address _role) {
-      roleAdd = _role;
-    }
-    modifier hasAdmin(){
-      require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), Mess);
-      _;
-    }
-    modifier hasDevAdmin(){
-      require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), Mess);
-      _;
-     }
-
+  
+  constructor(address _role) {
+    roleAdd = _role;
+  }
+  modifier hasAdmin(){
+    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), Mess);
+    _;
+  }
+  modifier hasDevAdmin(){
+    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), Mess);
+    _;
+  }
 
   //*~~~> Memory array of all listed Market Collections
   mapping(address => bool) private addressToRestricted;
@@ -99,6 +99,12 @@ contract MarketCollections is ICollections {
     address indexed collectionContract
   );
 
+  ///@notice
+    //*~~~> Sets the RoleProvider contract address
+  ///@dev
+    /*~~~>
+      _role: address of the RoleProvider contract;
+    <~~~*/
   function setRoleAdd(address _role) public hasAdmin returns(bool){
     roleAdd = _role;
     return true;
@@ -124,7 +130,13 @@ contract MarketCollections is ICollections {
     return true;
   }
 
-  //*~~~> sets approved tokens for offers
+  ///@notice
+    //*~~~> sets approved tokens for offers
+  ///@dev
+    /*~~~>
+      bool[] _canOffer: (true) if can offer token;
+      address[] _token: contract address of the token;
+    <~~~*/
   function setTokenList(bool[] calldata _canOffer, address[] calldata _token) public hasAdmin returns (bool) {
     for (uint i; i < _token.length; i++){
       addressToOfferable[_token[i]] = _canOffer[i];
@@ -132,29 +144,14 @@ contract MarketCollections is ICollections {
     return true;
   }
 
+  // checks if the token can be offered, returns bool;
   function canOfferToken(address token) public view returns(bool){
     return addressToOfferable[token];
   }
-  function canOfferToken(address[] memory tokens) public view returns(bool){
-    for(uint256 i = 0; i < tokens.length; i++) {
-      if (canOfferToken(tokens[i])) {
-        return true;
-      }
-    }
-    return false;  }
 
   // checks if the collection is restricted from trading, returns false if not
   function isRestricted(address nftContract) public view returns (bool) {
-    require(nftContract != address(0), "Trying to check zero address");
     return addressToRestricted[nftContract];
-  }
-  function isRestricted(address[] memory nftContracts) public view returns (bool) {
-    for(uint256 i = 0; i < nftContracts.length; i++) {
-      if (isRestricted(nftContracts[i])) {
-        return true;
-      }
-    }
-    return false;
   }
 
   ///@notice

@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~~>
+//*~~~> SPDX-License-Identifier: MIT
+
+/*~~~~>  PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,12 +56,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
- pragma solidity 0.8.12;
+ 
+ pragma solidity  0.8.7;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./interfaces/IRoleProvider.sol";
 
-contract MarketRoleProvider is AccessControl, IRoleProvider {
+contract MarketRoleProvider is AccessControl {
 
   address public marketplaceAdd;
   address public daoAdd;
@@ -108,10 +109,10 @@ contract MarketRoleProvider is AccessControl, IRoleProvider {
   /*~~~>
     Sets deployment address as default admin role
   <~~~*/
-  constructor(address _controller) {
-      _setupRole(DEFAULT_ADMIN_ROLE,_controller);
-      _setupRole(PROXY_ROLE, _controller);
-      _setupRole(DEV_ROLE, _controller);
+  constructor() {
+      _setupRole(DEFAULT_ADMIN_ROLE,msg.sender);
+      _setupRole(PROXY_ROLE, msg.sender);
+      _setupRole(DEV_ROLE, msg.sender);
   }
 
   modifier hasAdmin(){
@@ -124,89 +125,96 @@ contract MarketRoleProvider is AccessControl, IRoleProvider {
    bytes32 key: bytes of the role desired
    address _sig: address of the contract to be assigned the role
    */
-  function setAddressGivenBytes(bytes32 key, address _sig) external hasAdmin returns(bool) {
-    marketBytes[key] = _sig;
+  function setAddressGivenSwitch(address _sig, uint _switch) public hasAdmin returns(bool) {
+    if(_switch == 0){
+      marketBytes[PROXY_ROLE] = _sig;
+    }
+    if(_switch == 1){
+      marketBytes[DEV_ROLE] = _sig;
+    }
+    
     return true;
   }
 
-  function setDaoAdd(address _daoAdd) hasAdmin external returns(bool){
+  function setDaoAdd(address _daoAdd) hasAdmin public returns(bool){
     daoAdd = _daoAdd;
     marketBytes[DAO]= _daoAdd;
     return true;
   }
-  function setMarketAdd(address _mrktAdd) hasAdmin external returns(bool){
+  function setMarketAdd(address _mrktAdd) hasAdmin public returns(bool){
     marketplaceAdd = _mrktAdd;
     marketBytes[MARKET]= _mrktAdd;
     return true;
   }
-  function setNftAdd(address _nftAdd) hasAdmin external returns(bool){
+  function setNftAdd(address _nftAdd) hasAdmin public returns(bool){
     nftAdd = _nftAdd;
     marketBytes[NFT]= _nftAdd;
     return true;
   }
-  function setMarketMintAdd(address _mintAdd) hasAdmin external returns(bool){
+  function setMarketMintAdd(address _mintAdd) hasAdmin public returns(bool){
     marketMintAdd = _mintAdd;
     marketBytes[MINT] = _mintAdd;
     return true;
   }
-   function setCollectionsAdd(address _collAdd) hasAdmin external returns(bool){
+   function setCollectionsAdd(address _collAdd) hasAdmin public returns(bool){
     collectionsAdd = _collAdd;
     marketBytes[COLLECTION] = _collAdd;
     return true;
   }
-  function setOffersAdd(address _offAdd) hasAdmin external returns(bool){
+  function setOffersAdd(address _offAdd) hasAdmin public returns(bool){
     offersAdd = _offAdd;
     marketBytes[OFFERS] = _offAdd;
     return true;
   }
-  function setTradesAdd(address _tradAdd) hasAdmin external returns(bool){
+  function setTradesAdd(address _tradAdd) hasAdmin public returns(bool){
     tradesAdd = _tradAdd;
     marketBytes[TRADES] = _tradAdd;
     return true;
   }
-  function setBidsAdd(address _bidsAdd) hasAdmin external returns(bool){
+  function setBidsAdd(address _bidsAdd) hasAdmin public returns(bool){
     bidsAdd = _bidsAdd;
     marketBytes[BIDS] = _bidsAdd;
     return true;
   }
-  function setRwdsAdd(address _rwdsAdd) hasAdmin external returns(bool){
+  function setRwdsAdd(address _rwdsAdd) hasAdmin public returns(bool){
     rewardsAdd = _rwdsAdd;
     marketBytes[REWARDS] = _rwdsAdd;
     return true;
   }
-  function setRoleAdd(address _role) external hasAdmin returns(bool){
+  function setRoleAdd(address _role) public hasAdmin returns(bool){
     roleAdd = _role;
     marketBytes[ROLE] = _role;
     return true;
   }
-  function setOwnerProxyAdd(address _proxyAdd) external hasAdmin returns(bool){
+  function setOwnerProxyAdd(address _proxyAdd) public hasAdmin returns(bool){
     ownerProxyAdd = _proxyAdd;
     marketBytes[PROXY]=_proxyAdd;
     return true;
   }
-  function setPhunkyAdd(address _phunky) external hasAdmin returns(bool) {
+  function setPhunkyAdd(address _phunky) public hasAdmin returns(bool) {
     PHUNKYAdd = _phunky;
     marketBytes[PHUNKY] = _phunky;
     return true;
   }
-  function setDevSigAddress(address _sig) external hasAdmin returns(bool){
+  function setDevSigAddress(address _sig) public hasAdmin returns(bool){
     devSig = _sig;
     marketBytes[DEV] = _sig;
     return true;
   }
-  function setDevRole(address _sig) external hasAdmin returns(bool){
+  function setDevRole(address _sig) public hasAdmin returns(bool){
     marketBytes[DEV_ROLE] = _sig;
+    return true;
   }
 
-  function fetchAddress(bytes32 _var) external view returns(address){
+  function fetchAddress(bytes32 _var) public view returns(address){
     return marketBytes[_var];
   }
 
-  function hasTheRole(bytes32 role, address _address) external view returns(bool){
+  function hasTheRole(bytes32 role, address _address) public view returns(bool){
     return hasRole(role, _address);
   }
 
-  function hasContractRole(address _address) external view returns(bool){
+  function hasContractRole(address _address) public view returns(bool){
     if(_address == marketBytes[MARKET]){
       return true;
     }

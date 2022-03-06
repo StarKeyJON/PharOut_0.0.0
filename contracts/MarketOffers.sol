@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT
+
+/*~~~> PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,24 +56,20 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  0.8.12;
+ 
+pragma solidity  0.8.7;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-
 import "./interfaces/ICollections.sol";
 import "./interfaces/IEscrow.sol";
 import "./interfaces/INFTMarket.sol";
 import "./interfaces/IRoleProvider.sol";
 import "./interfaces/IRewardsController.sol";
 
-/*~~~>
-Interface declarations for upgradable contracts
-<~~~*/
 interface IERC20 {
   function balanceOf(address account) external view returns (uint256);
   function allowance(address owner, address spender) external view returns (uint256);
@@ -81,8 +78,7 @@ interface IERC20 {
   event Transfer(address indexed from, address indexed to, uint256 value);
 }
 
-contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
-  using SafeMath for uint;
+contract MarketOffers is ReentrancyGuard, Pausable {
   using Counters for Counters.Counter;
   //*~~~> counter increments NFTs Offers
   Counters.Counter private _offerIds;
@@ -211,7 +207,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
   );
 
   /*~~~> Allowing for upgradability of proxy addresses <~~~*/
-  function setRoleAdd(address _role) public hasAdmin returns(bool){
+  function setRoleAdd(address _role) external hasAdmin returns(bool){
     roleAdd = _role;
     return true;
   }
@@ -223,10 +219,10 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
       Future fees can be set by the controlling DAO 
     <~~~*/
   /// @return platform fee
-  function calcFee(uint256 _value) public returns (uint256)  {
+  function calcFee(uint256 _value) internal returns (uint256)  {
       address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
       uint fee = IRewardsController(rewardsAdd).getFee();
-      uint256 percent = (_value.mul(fee)).div(10000);
+      uint256 percent = ((_value * fee) /10000);
       return percent;
     }
 
@@ -247,19 +243,18 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     uint[] memory amount,
     address[] memory tokenCont,
     address[] memory seller
-  ) public nonReentrant returns(bool){
+  ) external nonReentrant returns(bool){
 
     address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
 
-      for (uint i; i< itemId.length; i++) {
+    for (uint i; i< itemId.length; i++) {
       require(ICollections(collsAdd).canOfferToken(tokenCont[i]),"Unknown token!");
       require (amount[i] > 0,"Amount needs to be > 0");
-      
+
       IERC20 tokenContract = IERC20(tokenCont[i]);
       uint256 allowance = tokenContract.allowance(msg.sender, address(this));
       require(allowance >= amount[i], "Check the token allowance");
       (tokenContract).transferFrom(msg.sender, (address(this)), amount[i]);
-
       uint offerId;
       uint len = openStorage.length;
       if (len>=1) {
@@ -277,7 +272,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
         seller[i],
         payable(msg.sender),
         amount[i]);
-      }
+    }
     return true;
   }
 
@@ -301,7 +296,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     uint[] memory amount,
     address[] memory tokenCont,
     address[] memory collection
-  ) public nonReentrant{
+  ) external nonReentrant{
     for (uint i; i<tokenCont.length;i++){
       
       address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
@@ -309,7 +304,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
       uint256 allowance = IERC20(tokenCont[i]).allowance(msg.sender, address(this));
       require(allowance >= amount[i], "Check the token allowance");
       require(ICollections(collsAdd).isRestricted(collection[i]) == false);
-      IERC20(tokenCont[i]).transferFrom(msg.sender, (address(this)), amount[i]);
+      require(IERC20(tokenCont[i]).transferFrom(msg.sender, (address(this)), amount[i]));
 
       uint offerId;
       uint len = blindOpenStorage.length;
@@ -356,7 +351,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     uint[] memory listedId,
     bool[] memory isListed,
     bool[] memory is1155
-  ) public nonReentrant returns(bool){
+  ) external nonReentrant returns(bool){
 
     address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
     address mrktAdd = IRoleProvider(roleAdd).fetchAddress(MARKET);
@@ -368,7 +363,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
       if(balance<1){
         /// Calculate fee and send to rewards contract
         uint256 saleFee = calcFee(offer.amount);
-        uint256 userAmnt = offer.amount.sub(saleFee);
+        uint256 userAmnt = (offer.amount -saleFee);
         /// send (saleFee) to rewards contract
         IRewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
         (tokenContract).transfer(rewardsAdd, saleFee);
@@ -381,7 +376,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
         require(tokenId[i]==offer.tokenId,"Wrong item!");
       }
       if(isListed[i]){
-        INFTMarket(mrktAdd).transferNftForSale(offer.offerer, listedId[i]);
+        require(INFTMarket(mrktAdd).transferNftForSale(offer.offerer, listedId[i]));
       } else {
         if (is1155[i]){
           IERC1155(offer.collectionOffer).safeTransferFrom(address(this), msg.sender, tokenId[i], offer.amount1155, "");
@@ -404,7 +399,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     offerId: Internal id of offer;
   <~~~*/
   ///@return Bool
-  function acceptOfferForNft(uint[] calldata offerId) public nonReentrant returns(bool){
+  function acceptOfferForNft(uint[] calldata offerId) external nonReentrant returns(bool){
 
     address mrktNft = IRoleProvider(roleAdd).fetchAddress(NFTADD);
     address rewardsAdd = IRoleProvider(roleAdd).fetchAddress(REWARDS);
@@ -420,8 +415,8 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
       if(balance<1){
         /// Calculate fee and send to rewards contract
         uint256 saleFee = calcFee(offer.amount);
-        uint256 userAmnt = offer.amount.sub(saleFee);
-        IRewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont);
+        uint256 userAmnt = (offer.amount - saleFee);
+        require(IRewardsController(rewardsAdd).depositERC20Rewards(saleFee, offer.tokenCont));
         (tokenContract).transfer(rewardsAdd, saleFee);
         (tokenContract).transfer(payable(offer.seller), userAmnt);
       } else {
@@ -430,18 +425,18 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
       if (IBids(bidsAdd).fetchBidId(offer.itemId) > 0) {
       /*~~~> Kill bid and refund bidValue <~~~*/
         //~~~> Call the contract to refund the ETH offered for a bid
-        IBids(bidsAdd).refundBid(IBids(bidsAdd).fetchBidId(offer.itemId));
+        require(IBids(bidsAdd).refundBid(IBids(bidsAdd).fetchBidId(offer.itemId)));
       }
       /*~~~> Check for the case where there is an offer and refund it. <~~~*/
       if (ITrades(tradesAdd).fetchTradeId(offer.itemId) > 0) {
       /*~~~> Kill offer and refund amount <~~~*/
         //*~~~> Call the contract to refund the ERC20 offered for trade
-        ITrades(tradesAdd).refundTrade(offer.itemId, ITrades(tradesAdd).fetchTradeId(offer.itemId));
+        require(ITrades(tradesAdd).refundTrade(offer.itemId, ITrades(tradesAdd).fetchTradeId(offer.itemId)));
       }
       marketIdToOfferId[offer.itemId] = 0;
       openStorage.push(offerId[i]);
       idToMktOffer[offerId[i]] = Offer(false, offerId[i], 0, 0, address(0x0), payable(0x0), address(0x0));
-      INFTMarket(mrktAdd).transferNftForSale(offer.offerer, offer.itemId);
+      require(INFTMarket(mrktAdd).transferNftForSale(offer.offerer, offer.itemId));
       emit OfferAccepted(
         offerId[i],
         offer.itemId,
@@ -461,7 +456,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     offerId: internal Id of the offer item
     isBlind: external bool needed to determine type of offer
   <~~~*/
-  function withdrawOffer(uint[] memory offerId, bool[] memory isBlind) public nonReentrant returns(bool){
+  function withdrawOffer(uint[] memory offerId, bool[] memory isBlind) external nonReentrant returns(bool){
     for (uint i; i< offerId.length; i++) {
     if (isBlind[i]){
       BlindOffer memory offer = idToBlindOffer[offerId[i]];
@@ -503,7 +498,7 @@ contract MarketOffers is ReentrancyGuard, Pausable, IOffers {
     itemId: Market storage Id of the item to be refunded
     offerId: Internal storage Id of the offer
   <~~~*/
-  function refundOffer(uint itemId, uint offerId) public nonReentrant hasContractAdmin returns(bool){
+  function refundOffer(uint itemId, uint offerId) external nonReentrant hasContractAdmin returns(bool){
       Offer memory _offer = idToMktOffer[itemId];
       /// verifying that the refunded offer is the correct one
       require(_offer.offerId == offerId);

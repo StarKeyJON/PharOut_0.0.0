@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT
+
+/*~~~>  PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,25 +56,28 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  0.8.12;
+ 
+pragma solidity  0.8.7;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
-import "./interfaces/IRoleProvider.sol";
-import "./interfaces/IRewardsController.sol";
-import "./interfaces/ICollections.sol";
-
+interface RoleProvider {
+  function hasTheRole(bytes32 role, address _address) external returns(bool);
+  function hasContractRole(address _address) external returns(bool);
+  function fetchAddress(bytes32 _var) external returns(address);
+}
 interface MarketMint {
   function fetchNFTsCreatedCount() external returns(uint);
 }
-contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
-  using SafeMath for uint;
+interface Collections {
+  function canOfferToken(address token) external returns(bool);
+}
+contract RewardsControl is ReentrancyGuard, Pausable {
   using Counters for Counters.Counter;
 
   /*~~~> 
@@ -84,16 +88,19 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
   address roleAdd;
 
   //*~~~> amount of ETH to split between Users;
-  uint public userEth;
-  //*~~~> amount of ETH to split between Devs;
-  uint public devEth;
-  //*~~~> amount of ETH to split between DAO;
-  uint public daoEth;
+  uint public ethRewards;
+//   uint public userEth;
+//   //*~~~> amount of ETH to split between Devs;
+//   uint public devEth;
+//   //*~~~> amount of ETH to split between DAO;
+//   uint public daoEth;
 
   //*~~~> Platform fee
   uint public fee;
 
   //*~~~> upgradable proxy contract addresses
+  bytes32 public constant DEV = keccak256("DEV");
+
   bytes32 public constant DAO = keccak256("DAO");
 
   bytes32 public constant NFTADD = keccak256("NFT");
@@ -101,14 +108,15 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
   bytes32 public constant MINT = keccak256("MINT");
 
   bytes32 public constant COLLECTION = keccak256("COLLECTION");
+  
 
   /*~~~> Open storage indexes <~~~*/
   uint[] private openStorage;
 
   Counters.Counter private _devs;
   Counters.Counter private _users;
-  Counters.Counter private _nftHodlers;
   Counters.Counter private _tokens;
+  Counters.Counter private _nftHodlers;
 
   mapping(uint256 => User) private idToUser; //Internal index => User
   mapping(uint256 => NftHodler) private idToHodler; //Internal index => Hodler
@@ -116,9 +124,8 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
   mapping(address => User) private addressToUser;
   mapping(address => uint256) private addressToId; //For user Id
   mapping(address => uint256) private addressToTokenId; // For token Id
-  mapping(uint256 => UserRewardToken) private idToUserToken;
-  mapping(uint256 => DevRewardToken) private idToDevToken;
-  mapping(uint256 => DaoRewardToken) private idToDaoToken;
+  mapping(address => uint256) public addressToRewardsId;
+  mapping(uint256 => RewardsToken) public idToRewardsToken;
   mapping(uint256 => DevTeam) private idToDevTeam;
   mapping(address => uint256) private addressToDevTeamId;
   mapping(uint256 => ClaimClock) private idToClock;
@@ -150,21 +157,12 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
     uint devId;
     address devAddress;
   }
-  struct UserRewardToken {
+  struct RewardsToken {
     uint tokenId;
     uint tokenAmount;
     address tokenAddress;
   }
-  struct DevRewardToken {
-    uint tokenId;
-    uint tokenAmount;
-    address tokenAddress;
-  }
-  struct DaoRewardToken {
-    uint tokenId;
-    uint tokenAmount;
-    address tokenAddress;
-  }
+
   struct ClaimClock {
     uint alpha; // initial claim cutoff
     uint delta; // mid claim cutoff
@@ -179,15 +177,15 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
   bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE"); 
   bytes32 public constant CONTRACT_ROLE = keccak256("CONTRACT_ROLE");
   modifier hasAdmin(){
-    require(IRoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
+    require(RoleProvider(roleAdd).hasTheRole(PROXY_ROLE, msg.sender), "DOES NOT HAVE ADMIN ROLE");
     _;
   }
   modifier hasDevAdmin(){
-    require(IRoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
+    require(RoleProvider(roleAdd).hasTheRole(DEV_ROLE, msg.sender), "DOES NOT HAVE DEV ROLE");
     _;
   }
   modifier hasContractAdmin(){
-    require(IRoleProvider(roleAdd).hasContractRole(msg.sender), "DOES NOT HAVE CONTRACT ROLE");
+    require(RoleProvider(roleAdd).hasContractRole(msg.sender), "DOES NOT HAVE CONTRACT ROLE");
     _;
   }
 
@@ -199,10 +197,11 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
 
   //*~~~> Declaring event structures
   event NewUser(uint indexed userId, address indexed userAddress);
-  event RewardsClaimed(address indexed userAddress);
+  event RewardsClaimed(address indexed userAddress, uint amount, uint[] erc20Amount, address[] contractAddress);
   event NewDev(address indexed devAddress);
   event RemovedDev(address indexed devAddress);
-  event DevClaimed(address indexed devAddress);
+  event DevClaimed(address indexed devAddress, uint amount, uint[] erc20Amount, address[] contractAddress);
+  event DaoClaimed(address indexed daoAddress, uint amount, uint[] erc20Amount, address[] contractAddress);
   event SetTime(uint indexed alpha, uint delta, uint omega, uint currentUserCount);
   event Received(address, uint);
 
@@ -230,10 +229,10 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
     uint devLen = _devs.current();
     bool added;
     for (uint i; i<devLen;i++){
-      DevTeam memory _dev = idToDevTeam[i+1];
+      DevTeam memory dev = idToDevTeam[i+1];
       // recycle old indexes if available
-      if(_dev.devAddress==address(0x0)){
-        idToDevTeam[i+1] = DevTeam(block.timestamp, _dev.devId, devAddress);
+      if(dev.devAddress==address(0x0)){
+        idToDevTeam[i+1] = DevTeam(block.timestamp, dev.devId, devAddress);
         addressToDevTeamId[devAddress] = i+1;
         added = true;
       }
@@ -274,18 +273,22 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
      userAddress: user address;
         <~~~*/
     /// @return Bool
-  function createUser(address userAddress) public hasContractAdmin nonReentrant returns(bool) {
+  function createUser(address userAddress) external hasContractAdmin nonReentrant returns(bool) {
     uint userId;
-    uint len = openStorage.length;
-    if (len>=1){
-      userId=openStorage[len-1];
-      _remove();
+    if(addressToId[userAddress] > 0){
+      userId = addressToId[userAddress];
     } else {
-      _users.increment();
-      userId = _users.current();
+      uint len = openStorage.length;
+      if (len >= 1){
+        userId = openStorage[len-1];
+        removeStorage();
+      } else {
+        _users.increment();
+        userId = _users.current();
+        addressToId[userAddress] = userId;
+      }
     }
-    addressToId[userAddress] = userId;
-    User memory user = User(true, 0, block.timestamp, userId, userAddress);
+    User memory user = User(false, 0, block.timestamp, userId, userAddress);
     idToUser[userId] = user;
     addressToUser[userAddress] = user; 
     emit NewUser(userId, userAddress);
@@ -302,12 +305,12 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
         <~~~*/
     /// @return Bool
   function createNftHodler(uint tokenId) public hasContractAdmin nonReentrant returns(bool) {
-    address mrktNft = IRoleProvider(roleAdd).fetchAddress(NFTADD);
+    address mrktNft = RoleProvider(roleAdd).fetchAddress(NFTADD);
     _nftHodlers.increment();
     uint hodlerId = _nftHodlers.current();
     NftHodler memory hodler = NftHodler(block.timestamp, hodlerId, tokenId);
     nftIdToHodler[tokenId] = hodler;
-    idToHodler[hodlerId] = hodler; 
+    idToHodler[hodlerId] = hodler;
     emit NewUser(hodlerId, mrktNft);
     return true;
   }
@@ -322,14 +325,13 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
   function setUser(bool canClaim, address userAddress) public hasContractAdmin nonReentrant returns(bool) {
     uint userId = addressToId[userAddress];
     User memory user = idToUser[userId];
-    if (canClaim){
+    if(canClaim){
       idToUser[userId] = User(true, 0, user.timestamp, user.userId, userAddress);
     } else {
       // push old user Id for recycling
       openStorage.push(userId);
-      // reset user address to Id mapping
-      addressToId[userAddress] = 0;
-      idToUser[userId] = User(false, 0, 0, user.userId,  address(0x0));
+      // reset user to Id mapping
+      idToUser[userId] = User(false, 0, 0, user.userId,  userAddress);
     }
     return true;
   }
@@ -341,8 +343,8 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
     Total user count is saved.
     Can only be called every 2 days.
   <~~~*/
-  function setClaimClock() public nonReentrant {
-    address mintAdd = IRoleProvider(roleAdd).fetchAddress(MINT);
+  function setClaimClock() external nonReentrant {
+    address mintAdd = RoleProvider(roleAdd).fetchAddress(MINT);
     uint users = fetchUserAmnt();
     uint nfts = MarketMint(mintAdd).fetchNFTsCreatedCount();
     ClaimClock memory clock = idToClock[8];
@@ -350,17 +352,30 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
     uint alpha = block.timestamp;
     uint delta = clock.alpha;
     uint omega = clock.delta;
-    uint totalUsers = users.add(nfts);
+    uint totalUsers = users + nfts;
     idToClock[8] = ClaimClock(alpha, delta, omega, totalUsers);
     emit SetTime(alpha, delta, omega, totalUsers);
   }
 
+  /// @notice
+  /*~~~> 
+    Function for claiming User rewards
+  <~~~*/
+  /// @dev
+  /*~~~>
+    Withdraws Eth deposited, 
+      then checks against the Rewards deposited for withdraw,
+      then checks against Redemptions for withdraw;
+  <~~~*/
   //*~~~> Claims all eligible rewards for user
-  function claimRewards() public nonReentrant {
+  ///@dev address[] contractAddress: Addresses of the ERC20's to be claimed
+  function claimRewards(address[] calldata contractAddress) external nonReentrant {
     uint id = addressToId[msg.sender];
     User memory user = idToUser[id];
     ClaimClock memory clock = idToClock[8];
-    require(user.canClaim==true,"Ineligible!");
+    require(user.canClaim == true, "Ineligible!");
+    uint userEthSplit = ((ethRewards / 3) * 2);
+    uint userSplits = (userEthSplit / clock.howManyUsers);
     /*~~~> Distribute according to timestamp cutoff
       if user.timestamp:
           > clock.alpha = no claims;
@@ -369,74 +384,98 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
           < clock.omega && claims <= 2 = 1/3 claim, else no claim;
           claims == 3 no claims;
     <~~~*/
-    ///*~~~> i.e. alpha: 100, delta: 98, omega:96  :
-      ///*~~~> user.timestamp == 99, is less than alpha, greater than omega, 0 claims, gets rewards
+    ///*~~~> i.e. alpha: 100, delta: 98, omega:96  ::
+      ///*~~~> user.timestamp == 99, is less than alpha, greater than omega, 0 claims, gets rewards;
     if (user.timestamp < clock.alpha && user.timestamp > clock.delta){
       if (user.claims==0){
-        uint userSplits = userEth.div(clock.howManyUsers);
         payable(msg.sender).transfer(userSplits);
-        userEth = userEth.sub(userSplits);
+        ethRewards = ethRewards - userSplits;
         /// update new amount
-        uint tokenLen = _tokens.current();
+      uint tokenLen = contractAddress.length;
       for (uint i; i < tokenLen; i++) {
-        UserRewardToken memory toke = idToUserToken[i+1];
+        uint tokenId = addressToRewardsId[contractAddress[i]];
+        RewardsToken memory toke = idToRewardsToken[tokenId];
         if(toke.tokenAmount > 0){
-          uint ercSplit = (toke.tokenAmount.div(clock.howManyUsers)).div(3);
+          uint userErcSplits = ((toke.tokenAmount / 3) * 2);
+          uint ercSplit = (userErcSplits / clock.howManyUsers);
           IERC20(toke.tokenAddress).transfer(payable(msg.sender), ercSplit);
           /// update new amount
-          toke.tokenAmount = toke.tokenAmount.sub(ercSplit);
+          toke.tokenAmount = (toke.tokenAmount - ercSplit);
         }
+        idToRewardsToken[tokenId] = RewardsToken(tokenId, toke.tokenAmount, toke.tokenAddress);
       }
-        user.claims+=1;
+        user.claims += 1;
       }
     }
-    ///*~~~> i.e. alpha: 100, delta: 98, omega:96  :
-      ///*~~~> user.timestamp == 97, is less than delta, greater than omega, 1 or less claims, gets 1/2 full rewards
+    ///*~~~> i.e. alpha: 100, delta: 98, omega:96  ::
+      ///*~~~> user.timestamp == 97, is less than delta, greater than omega, 1 or less claims, gets 1/2 full rewards;
     if (user.timestamp < clock.delta && user.timestamp > clock.omega){
       if(user.claims <= 1){
-        uint userSplits = userEth.div(clock.howManyUsers);
-        payable(msg.sender).transfer(userSplits.div(2));
+        payable(msg.sender).transfer(userSplits / 2);
         /// update new amount
-        userEth = userEth.sub(userSplits);
-        uint tokenLen = _tokens.current();
+        ethRewards = (ethRewards - (userSplits / 2));
+      uint tokenLen = contractAddress.length;
       for (uint i; i < tokenLen; i++) {
-        UserRewardToken memory toke = idToUserToken[i+1];
+        uint tokenId = addressToRewardsId[contractAddress[i]];
+        RewardsToken memory toke = idToRewardsToken[tokenId];
         if(toke.tokenAmount > 0){
-          uint ercSplit = (toke.tokenAmount.div(clock.howManyUsers)).div(3);
+          uint userErcSplits = ((toke.tokenAmount / 3) * 2);
+          uint ercSplit = ((userErcSplits / clock.howManyUsers) / 2);
           IERC20(toke.tokenAddress).transfer(payable(msg.sender), ercSplit);
           /// update new amount
-          toke.tokenAmount = toke.tokenAmount.sub(ercSplit);
+          toke.tokenAmount = (toke.tokenAmount - ercSplit);
         }
+        idToRewardsToken[tokenId] = RewardsToken(tokenId, toke.tokenAmount, toke.tokenAddress);
       }
-        user.claims+=1;
+        user.claims += 1;
       }
     }
-    ///*~~~> i.e. alpha: 100, delta: 98, omega:96  :
-      ///*~~~> user.timestamp == 95, is less than omega, 2 or less claims, gets 1/3 full reward
+    ///*~~~> i.e. alpha: 100, delta: 98, omega:96  ::
+      ///*~~~> user.timestamp == 95, is less than omega, 2 or less claims, gets 1/3 full reward;
     if (user.timestamp < clock.omega && user.claims <= 2){
-      uint userSplits = userEth.div(clock.howManyUsers);
-      payable(msg.sender).transfer(userSplits.div(3));
+      payable(msg.sender).transfer(userSplits / 3);
       /// update new amount
-      userEth = userEth.sub(userSplits);
-      uint tokenLen = _tokens.current();
+      ethRewards = (ethRewards - (userSplits / 3));
+      uint tokenLen = contractAddress.length;
       for (uint i; i < tokenLen; i++) {
-        UserRewardToken memory toke = idToUserToken[i+1];
+        uint tokenId = addressToRewardsId[contractAddress[i]];
+        RewardsToken memory toke = idToRewardsToken[tokenId];
         if(toke.tokenAmount > 0){
-          uint ercSplit = (toke.tokenAmount.div(clock.howManyUsers)).div(3);
+          uint userErcSplits = ((toke.tokenAmount / 3) * 2);
+          uint ercSplit = ((userErcSplits / clock.howManyUsers) / 3);
           IERC20(toke.tokenAddress).transfer(payable(msg.sender), ercSplit);
           /// update new amount
-          toke.tokenAmount = toke.tokenAmount.sub(ercSplit);
+          toke.tokenAmount = (toke.tokenAmount - ercSplit);
         }
+        idToRewardsToken[tokenId] = RewardsToken(tokenId, toke.tokenAmount, toke.tokenAddress);
       }
-      user.claims+=1;
+      user.claims += 1;
     }
+    if(user.claims == 3){
+      idToUser[user.userId] = User(false, 0, user.timestamp, user.userId, user.userAddress);
+    } else {
+      idToUser[user.userId] = User(true, user.claims, user.timestamp, user.userId, user.userAddress);
+    }
+    clock.howManyUsers -= 1;
+    idToClock[8] = ClaimClock(clock.alpha, clock.delta, clock.omega, clock.howManyUsers);
   }
 
+  /// @notice
+  /*~~~> 
+    Function for claiming NFT rewards
+  <~~~*/
+  /// @dev
+  /*~~~>
+    Withdraws Eth deposited, 
+      then checks against the Rewards deposited for withdraw,
+      then checks against Redemptions for withdraw;
+  <~~~*/
   //*~~~> Claims eligible rewards for NFT holders <~~~*//
-  function claimNFTRewards(uint nftId) public nonReentrant {
+    ///@dev address[] contractAddress: Addresses of the ERC20's to be claimed
+  function claimNFTRewards(uint nftId, address[] calldata contractAddress) external nonReentrant {
     ClaimClock memory clock = idToClock[8];
     
-    address mrktNft = IRoleProvider(roleAdd).fetchAddress(NFTADD);
+    address mrktNft = RoleProvider(roleAdd).fetchAddress(NFTADD);
 
     ///*~~~> require msg.sender to be a platform NFT holder
     require(IERC721(mrktNft).balanceOf(msg.sender) > 0, "Ineligible!");
@@ -444,80 +483,130 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
     NftHodler memory hodler = nftIdToHodler[nftId];
     ///*~~~> Limiting claim abilities to once a day
     require(hodler.timestamp < (block.timestamp - 1 days));
-
-    uint splits = userEth.div(clock.howManyUsers);
+    uint userRewards = (ethRewards - (ethRewards / 3));
+    uint splits = (userRewards / clock.howManyUsers);
     payable(msg.sender).transfer(splits);
     /// update new amount
-    userEth = userEth.sub(splits);
+    ethRewards = (ethRewards - splits);
     
-    uint len = _tokens.current();
+    uint len = contractAddress.length;
+    address[] memory adds;
+    uint[] memory amnts;
     for (uint i; i < len; i++) {
-      UserRewardToken memory toke = idToUserToken[i+1];
-      if(toke.tokenAmount > 0){
-        uint ercSplit = (toke.tokenAmount.div(clock.howManyUsers));
+      uint tokenId = addressToRewardsId[contractAddress[i]];
+      RewardsToken memory toke = idToRewardsToken[tokenId];
+      if(toke.tokenAmount > 0) {
+        adds[i] = toke.tokenAddress;
+        uint userSplit = ((toke.tokenAmount / 3) * 2);
+        uint ercSplit = (userSplit / clock.howManyUsers);
+        amnts[i] = ercSplit;
         /// transfer token amount divided by total user amount 
         IERC20(toke.tokenAddress).transfer(payable(msg.sender), ercSplit);
          /// update new amount
-        toke.tokenAmount = toke.tokenAmount.sub(ercSplit);
+        toke.tokenAmount -= ercSplit;
       }
+      idToRewardsToken[tokenId] = RewardsToken(tokenId, toke.tokenAmount, toke.tokenAddress);
     }
-    emit RewardsClaimed(msg.sender);
+    clock.howManyUsers -= 1;
+    idToClock[8] = ClaimClock(clock.alpha, clock.delta, clock.omega, clock.howManyUsers);
+    emit RewardsClaimed(msg.sender, splits, amnts, adds);
   }
 
-  /*~~~>
-    Allows Dev addresses to withdraw
-    Only an address that exists in the dev array will receive anything.
+  /// @notice
+  /*~~~> 
+    Function for claiming Dev rewards
   <~~~*/
-  function claimDevRewards() public nonReentrant {
+  /// @dev
+  /*~~~>
+    Withdraws Eth deposited, 
+      then checks against the Rewards deposited for withdraw,
+      then checks against Redemptions for withdraw;
+  <~~~*/
+    ///@dev address[] contractAddress: Addresses of the ERC20's to be claimed
+  function claimDevRewards(address[] calldata contractAddress) external nonReentrant {
     uint devId = addressToDevTeamId[msg.sender];
     DevTeam memory dev = idToDevTeam[devId];
+    address devMultiPass = RoleProvider(roleAdd).fetchAddress(DEV);
     /// ensuring msg.sender is a dev address
-    require(dev.devAddress == msg.sender);
-
+    if(msg.sender != devMultiPass){
+      require(dev.devAddress == msg.sender);
+    }
     ///*~~~> Limiting claim abilities to once a day
     require(dev.timestamp  < (block.timestamp - 1 days), "Ineligible!");
-    
-    uint devSplit = devEth.div(_devs.current());
-    /// transfer devEth divided by total dev amount
-    payable(dev.devAddress).transfer(devSplit);
-    /// update new amount
-    devEth = devEth.sub(devSplit);
-    uint len = _tokens.current();
+    /// Devs receive 1/2 of 1/4 of 1/3 of total amounts; (1/24)
+    // Dev multisig receives (1/24)
+    uint devSig = (ethRewards / 24);
+    uint devSplit = (devSig / _devs.current());
+    if(msg.sender != devMultiPass){
+      payable(dev.devAddress).transfer(devSplit);
+      ethRewards -= devSplit;
+    } else {
+      payable(devMultiPass).transfer(devSig);
+      ethRewards -= devSig;
+    }
+    uint len = contractAddress.length;
+    address[] memory adds;
+    uint[] memory amnts;
     for (uint i; i < len; i++) {
-      DevRewardToken memory token = idToDevToken[i+1];
+      uint tokenId = addressToRewardsId[contractAddress[i]];
+      RewardsToken memory token = idToRewardsToken[tokenId];
       if(token.tokenAmount > 0){
-        uint ercSplit = (token.tokenAmount.div(_devs.current()));
-        /// transfer token amount divided by total dev amount 
-        IERC20(token.tokenAddress).transfer(payable(dev.devAddress), ercSplit);
-        token.tokenAmount = token.tokenAmount.sub(ercSplit);
+        adds[i] = token.tokenAddress;
+        uint devTokenSig = (token.tokenAmount / 24);
+        uint devTokenSplit = (devSig / _devs.current());
+        amnts[i] = devTokenSplit;
+        /// transfer token amount
+        if(msg.sender != devMultiPass){
+          IERC20(token.tokenAddress).transfer(payable(dev.devAddress), devTokenSplit);
+          token.tokenAmount -= devTokenSplit;
+        } else {
+          IERC20(token.tokenAddress).transfer(payable(devMultiPass), devTokenSig);
+          token.tokenAmount -= devTokenSig;
+        }
         idToDevTeam[devId] = DevTeam(block.timestamp, devId, dev.devAddress);
       }
+      idToRewardsToken[tokenId] = RewardsToken(tokenId, token.tokenAmount, token.tokenAddress);
     }
-    emit DevClaimed(msg.sender);
+    emit DevClaimed(msg.sender, devSplit, amnts, adds);
   }
 
-  function splitRewards(uint _split) public payable returns(bool) {
-    require(msg.value == _split);
-    // divide fee between Users, Devs and DAO
-    // split fee in 3 parts, 2/3 to users, 1/3 to dao
-    uint partySplit = _split.div(3);
-    // userSplit is 2/3 of fee
-    uint userSplit = _split.sub(partySplit);
-    // split dao in 4 parts, 
-    // 3/4 to dao, 1/4 to devs
-    uint devSplit = partySplit.div(4);
-    uint daoSplit = partySplit.sub(devSplit);
-
-    userEth = userEth.add(userSplit);
-    daoEth = daoEth.add(daoSplit);
-    devEth = devEth.add(devSplit);
-    return true;
+  /// @notice
+  /*~~~> 
+    Function for claiming Dao rewards
+  <~~~*/
+  /// @dev
+  /*~~~>
+    Withdraws Eth deposited, 
+      then checks against the Rewards deposited for withdraw,
+      then checks against Redemptions for withdraw;
+  <~~~*/
+    ///@dev address[] contractAddress: Addresses of the ERC20's to be claimed
+  function claimDaoRewards(address[] calldata tokenAddress) external nonReentrant {
+    address daoAdd = RoleProvider(roleAdd).fetchAddress(DAO);
+    require(msg.sender == daoAdd);
+    /// Dao gets 3/4 of 1/3 of total amount (3/12);
+    uint daoSplit = (ethRewards / 3);
+    uint daoAmount = (daoSplit - (daoSplit / 4));
+    payable(daoAdd).transfer(daoAmount);
+    ethRewards -= daoAmount;
+    /// update new amount
+    uint count = tokenAddress.length;
+    for (uint i; i < count; i++) {
+      uint tokenId = addressToRewardsId[tokenAddress[i]];
+      RewardsToken memory token = idToRewardsToken[tokenId];
+      uint daoTokenSplit = (token.tokenAmount / 3);
+      uint daoTokenAmount = (daoTokenSplit - (daoTokenSplit / 4));
+      if (daoTokenAmount > 0) {
+        IERC20(token.tokenAddress).transfer(daoAdd, daoTokenAmount);
+        token.tokenAmount -= daoTokenAmount;
+        idToRewardsToken[tokenId] = RewardsToken(tokenId, token.tokenAmount, token.tokenAddress);
+      }
+    }
   }
-
 
   /// @notice
   /*~~~>
-    Splits rewarded ERC20 tokens to all users
+    Deposits Eth rewards
   <~~~*/
   /// @dev
   /*~~~>
@@ -525,81 +614,40 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
     tokenAddress: contract address of the ERC20
   <~~~*/
   /// @return Bool
-  function depositERC20Rewards(uint amount, address tokenAddress) public returns (bool){
-    require(ICollections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).canOfferToken(tokenAddress)==true);
-    
-    // split fee in 3 parts, 2/3 to users, 1/3 to dao
-    uint partySplit = amount.div(3);
-    // userSplit is 2/3 of fee
-    uint userSplit = amount.sub(partySplit);
-    // split dao in 4 parts, 
-    // 3/4 to dao, 
-    uint devSplit = partySplit.div(4);
-    // 1/4 to devs
-    uint daoSplit = partySplit.sub(devSplit);
+  function depositEthRewards(uint reward) external payable returns(bool) {
+    require(msg.value == reward);
+    ethRewards = (ethRewards + reward);
+    return true;
+  }
+
+  /// @notice
+  /*~~~>
+    Deposits ERC20 tokens for rewards
+  <~~~*/
+  /// @dev
+  /*~~~>
+    amount: how much ERC20 to be deposited
+    tokenAddress: contract address of the ERC20
+  <~~~*/
+  /// @return Bool
+  function depositERC20Rewards(uint amount, address tokenAddress) external returns(bool){
+    require(Collections(RoleProvider(roleAdd).fetchAddress(COLLECTION)).canOfferToken(tokenAddress)==true);
+
     uint tokenId = addressToTokenId[tokenAddress];
     //*~~~> Check to see if the token address exists already
-    if(tokenId>0) {
-      // add received funds to total user token amount
-      UserRewardToken memory userToken = idToUserToken[tokenId];
-      uint newAmnt = userToken.tokenAmount.add(userSplit);
-      idToUserToken[tokenId] = UserRewardToken(tokenId, newAmnt, tokenAddress);
-      // add received funds to devTokenAmount
-      DevRewardToken memory devToken = idToDevToken[tokenId];
-      uint newDevAmnt = devToken.tokenAmount.add(devSplit);
-      idToDevToken[tokenId] = DevRewardToken(tokenId, newDevAmnt, tokenAddress);
-      // add received funds to daoTokenAmount
-      DaoRewardToken memory daoToken = idToDaoToken[tokenId];
-      uint newDaoAmnt = daoToken.tokenAmount.add(daoSplit);
-      idToDaoToken[tokenId] = DaoRewardToken(tokenId, newDaoAmnt, tokenAddress);
-    } else { //*~~~> else create a new ID for it
+    if(tokenId>0){
+        RewardsToken memory reward = idToRewardsToken[tokenId];
+        uint newAmnt = (reward.tokenAmount + amount);
+        idToRewardsToken[tokenId] = RewardsToken(tokenId, newAmnt, tokenAddress);
+    } else {
       _tokens.increment();
       uint newTokenId = _tokens.current();
       addressToTokenId[tokenAddress] = newTokenId;
       tokenAddresses[newTokenId] = tokenAddress;
-      // add received funds to total user token amount
-      UserRewardToken memory userToken = idToUserToken[newTokenId];
-      uint newAmnt = userToken.tokenAmount.add(userSplit);
-      idToUserToken[newTokenId] = UserRewardToken(newTokenId, newAmnt, tokenAddress);
-      // add received funds to devTokenAmount
-      DevRewardToken memory devToken = idToDevToken[newTokenId];
-      uint newDevAmnt = devToken.tokenAmount.add(devSplit);
-      idToDevToken[newTokenId] = DevRewardToken(newTokenId, newDevAmnt, tokenAddress);
-      // add received funds to daoTokenAmount
-      DaoRewardToken memory daoToken = idToDaoToken[newTokenId];
-      uint newDaoAmnt = daoToken.tokenAmount.add(daoSplit);
-      idToDaoToken[newTokenId] = DaoRewardToken(newTokenId, newDaoAmnt, tokenAddress);
+      idToRewardsToken[tokenId] = RewardsToken(tokenId, amount, tokenAddress);
     }
     emit Received(tokenAddress, amount); 
     return true;  
-  }
-
-  /// @notice
-  /*~~~> 
-    Functions for claiming Dao rewards
-  <~~~*/
-  /// @dev
-  /*~~~>
-    Withdraws Eth deposited, 
-      then checks against the Rewards deposited for withdraw,
-      then checks against Redemptions for withdraw;
-    Resets claimAmounts back to 0;
-  <~~~*/
-  function claimDaoRewards() public nonReentrant {
-    address daoAdd = IRoleProvider(roleAdd).fetchAddress(DAO);
-    require(msg.sender == daoAdd);
-    payable(daoAdd).transfer(daoEth);
-    daoEth = daoEth.sub(daoEth);
-    /// update new amount
-    uint count = _tokens.current();
-    for (uint i; i < count; i++) {
-      DaoRewardToken memory token = idToDaoToken[i+1];
-      if (token.tokenAmount > 0) {
-        IERC20(token.tokenAddress).transfer(daoAdd, token.tokenAmount);
-         /// update new amount inline
-        idToDaoToken[token.tokenId] = DaoRewardToken(token.tokenId, 0, token.tokenAddress);
-      }
-    }
   }
 
     /// @notice 
@@ -615,7 +663,7 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
         We use the last item in the storage (length of array - 1 for 0 based index position),
         in order to pop off the item and avoid rewriting 
   <~~~*/
-  function _remove() internal {
+  function removeStorage() internal {
       openStorage.pop();
     }
 
@@ -664,27 +712,27 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
     return amount;
   }
 
-  function fetchUserRewardTokens() public view returns (UserRewardToken[] memory token){
+  function fetchUserRewardTokens() public view returns (RewardsToken[] memory token){
     uint count = _tokens.current();
-    UserRewardToken[] memory tokens = new UserRewardToken[](count);
+    RewardsToken[] memory tokens = new RewardsToken[](count);
     for (uint i; i < count; i++) {
-      tokens[i] = idToUserToken[i+1];
+      tokens[i] = idToRewardsToken[i+1];
     }
     return tokens;
   }
-  function fetchDevRewardTokens() public view returns (DevRewardToken[] memory token){
+  function fetchDevRewardTokens() public view returns (RewardsToken[] memory token){
     uint count = _tokens.current();
-    DevRewardToken[] memory tokens = new DevRewardToken[](count);
+    RewardsToken[] memory tokens = new RewardsToken[](count);
     for (uint i; i < count; i++) {
-      tokens[i] = idToDevToken[i+1];
+      tokens[i] = idToRewardsToken[i+1];
     }
     return tokens;
   }
-  function fetchDaoRewardTokens() public view returns (DaoRewardToken[] memory token){
+  function fetchDaoRewardTokens() public view returns (RewardsToken[] memory token){
     uint count = _tokens.current();
-    DaoRewardToken[] memory tokens = new DaoRewardToken[](count);
+    RewardsToken[] memory tokens = new RewardsToken[](count);
     for (uint i; i < count; i++) {
-      tokens[i] = idToDaoToken[i+1];
+      tokens[i] = idToRewardsToken[i+1];
     }
     return tokens;
   }
@@ -720,7 +768,7 @@ contract RewardsControl is ReentrancyGuard, Pausable, IRewardsController {
   event FundsForwarded(uint value, address _from, address _to);
   receive() external payable {
     payable(roleAdd).transfer(msg.value);
-      emit FundsForwarded(msg.value, msg.sender, roleAdd);
+    emit FundsForwarded(msg.value, msg.sender, roleAdd);
   }
 
   function onERC721Received(
