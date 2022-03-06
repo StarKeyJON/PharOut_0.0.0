@@ -6,7 +6,7 @@ interface IRewardsController {
   function depositERC20Rewards(uint amount, address tokenAddress) external returns(bool);
   function getFee() external view returns(uint);
   function setFee(uint _fee) external returns (bool);
-  function depositEthRewards(uint _split) external payable returns(bool);
+  function depositEthRewards(uint reward) external payable returns(bool);
   function createUser(address userAddress) external returns(bool);
   function setUser(bool canClaim, address userAddress) external returns(bool);
 }
