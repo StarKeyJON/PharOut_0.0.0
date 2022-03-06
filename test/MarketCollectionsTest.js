@@ -16,7 +16,7 @@ describe("MarketPlace Collections Contract Unit Test", function() {
     const [deployer] = await ethers.getSigners();
 
     const RoleProvider = await ethers.getContractFactory("MarketRoleProvider");
-    const roleProvider = await RoleProvider.deploy(deployer.address);
+    const roleProvider = await RoleProvider.deploy();
     await roleProvider.deployed();
     const roleProviderAddress = roleProvider.address;
     console.log("Role provider Address is: ", roleProviderAddress);
