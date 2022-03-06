@@ -1,5 +1,6 @@
-//*~~~> SPDX-License-Identifier: MIT OR Apache-2.0
-/*~~~>
+//*~~~> SPDX-License-Identifier: MIT
+
+/*~~~> PHUNKS
     Thank you Phunks, your inspiration and phriendship meant the world to me and helped me through hard times.
       Never stop phighting, never surrender, always stand up for what is right and make the best of all situations towards all people.
       Phunks are phreedom phighters!
@@ -55,7 +56,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%@@@@@///////////////@@@@@%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  <~~~*/
-pragma solidity  0.8.12;
+ 
+pragma solidity  0.8.7;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -63,17 +65,12 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-
 import "./interfaces/ICollections.sol";
 import "./interfaces/IEscrow.sol";
 import "./interfaces/INFTMarket.sol";
 import "./interfaces/IRoleProvider.sol";
 
-/*~~~>
-Interface declarations for upgradable contracts
-<~~~*/
-
-contract MarketTrades is ReentrancyGuard, Pausable, ITrades {
+contract MarketTrades is ReentrancyGuard, Pausable {
   using Counters for Counters.Counter;
   
   //*~~~> counter increments NFTs Trade Offers
@@ -222,9 +219,8 @@ contract MarketTrades is ReentrancyGuard, Pausable, ITrades {
       address[] memory nftContract,
       address[] memory seller
   ) public whenNotPaused nonReentrant returns(bool){
-    require(ICollections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).isRestricted(nftContract) == false);
-
     for (uint i;i<itemId.length;i++) {
+      require(ICollections(IRoleProvider(roleAdd).fetchAddress(COLLECTION)).isRestricted(nftContract[i]) == false);
       uint tradeId;
       if (openStorage.length>=1) {
         tradeId = openStorage[openStorage.length-1];
@@ -288,7 +284,6 @@ contract MarketTrades is ReentrancyGuard, Pausable, ITrades {
   ) public whenNotPaused nonReentrant{
 
     address collsAdd = IRoleProvider(roleAdd).fetchAddress(COLLECTION);
-    require(ICollections(collsAdd).isRestricted(nftContract) == false);
 
     for (uint i;i<tokenId.length;i++) {
       uint tradeId;
@@ -299,6 +294,7 @@ contract MarketTrades is ReentrancyGuard, Pausable, ITrades {
         _blindTrades.increment();
         tradeId = _blindTrades.current();
       }
+      require(ICollections(collsAdd).isRestricted(nftContract[i]) == false);
       if (is1155[i]){
         IERC1155(nftContract[i]).safeTransferFrom(msg.sender, address(this), tokenId[i], amount1155[i], "");
       } else {
@@ -387,7 +383,7 @@ contract MarketTrades is ReentrancyGuard, Pausable, ITrades {
     tradeId: trade item id for this internal storage;
   <~~~*/
   ///@return Bool
-  function refundTrade(uint itemId, uint tradeId) public hasContractAdmin returns (bool){
+  function refundTrade(uint itemId, uint tradeId) public hasContractAdmin returns(bool){
     Trade memory trade = idToNftTrade[tradeId];
     if ( trade.is1155 ){
       IERC1155(trade.nftCont).safeTransferFrom(address(this), trade.trader, trade.tokenId, trade.amount1155, "");
