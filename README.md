@@ -13,8 +13,8 @@ Place a "blind" bid, trade or ERC20 offer on any specific unlisted item or colle
   Current Rinkeby Testnet Deployments:
   </h4>
   <ul>
-  <li>TempMint.sol: https://rinkeby.etherscan.io/address/0xff34E6069B244914F73c8E49Cff1db18313E340f#code</li>
-  <li>(TempMint)PhamNFTs.sol: https://rinkeby.etherscan.io/address/0x42BD86C6950b32d100f1ccf323f100aF3c279F7D#code</li>
+  <li>TempMint.sol: https://rinkeby.etherscan.io/address/0xfeCeBb1b1783FAEfa8950ead10157b60c6233040#code</li>
+  <li>(TempMint)PhamNFTs.sol: https://rinkeby.etherscan.io/address/0xF9207B05aC06d6bcFe4008BAc5B21D734b875cCD#code</li>
   <li>RoleProvider.sol: https://rinkeby.etherscan.io/address/0x3591e887951788A156F95bb5f15A416ECd798a55#code</li>
   <li>OwnerProxy.sol: https://rinkeby.etherscan.io/address/0xCE72a5f7DfB341ef64323109092490b879bf18a5#code</li>
   <li>NFTMarket.sol: https://rinkeby.etherscan.io/address/0xe662543382768A437fc038F9a3D86B62428ffF34#code</li>
