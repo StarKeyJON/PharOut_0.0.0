@@ -67,7 +67,6 @@ contract PhamNFTs is ERC721, AccessControl {
     bytes32 public constant USER_OWNER_ROLE = keccak256("USER_OWNER");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    uint256 tokenId;
     uint256 supply;
     string baseUri;
 
