@@ -71,7 +71,7 @@ contract TempMint is ReentrancyGuard, Pausable, AccessControl {
   /*~~~>
     State variables
   <~~~*/
-  uint private nftsRedeemed;
+  uint public nftsRedeemed;
   uint public mintPrice;
   address public nftAddress;
 
@@ -91,12 +91,14 @@ contract TempMint is ReentrancyGuard, Pausable, AccessControl {
 
   constructor(address deployer) {
     _setupRole(DEFAULT_ADMIN_ROLE, deployer);
-    _setupRole(DEV_ROLE,deployer);
-    mintPrice = 1e17;
+    _setupRole(DEV_ROLE, deployer);
+    mintPrice = 0;
+    nftsRedeemed = 0;
   }
 
   //*~~~> Memory mappings
   mapping (uint256 => NFT) private _idToNft;
+  mapping (address => uint) public _addressToUserCount;
   
   // Event declaration
   event nftClaimed(uint nftId, address creator);
@@ -119,14 +121,17 @@ contract TempMint is ReentrancyGuard, Pausable, AccessControl {
     /*~~~>
       Public interaction function for minting new NFTs incrementally
     <~~~*/
-  ///@dev //*~~~> uint[] howMany: howMany to mint
+  ///@dev 
+  //*~~~> uint howMany: howMany to mint
+  //*~~~> address[] calldata toWhom: who to send the NFT to
   /// @return Bool
-  function redeemForNft(uint howMany) external payable whenNotPaused returns(bool){
+  function redeemForNft(uint howMany, address[] calldata toWhom) external payable whenNotPaused returns(bool){
     require(msg.value >= mintPrice * howMany);
     uint id = nftsRedeemed;
-    for(uint i; i < howMany; i++){
-      MarketNFT(nftAddress).safeMint(msg.sender, id);
-      _idToNft[id] = NFT(id, nftAddress, msg.sender);
+    for(uint i = 0; i < howMany; i++){
+      MarketNFT(nftAddress).safeMint(toWhom[i], id);
+      _idToNft[id] = NFT(id, nftAddress, toWhom[i]);
+      _addressToUserCount[toWhom[i]] += 1;
       emit nftClaimed(id, msg.sender);
       id+=1;
     }
@@ -141,10 +146,24 @@ contract TempMint is ReentrancyGuard, Pausable, AccessControl {
   function fetchNFTsCreated() external view returns (NFT[] memory) {
     NFT[] memory nfts = new NFT[](nftsRedeemed);
     uint currentIndex;
-    for (uint i; i < nftsRedeemed; i++) {
+    for (uint i = 0; i < nftsRedeemed; i++) {
       NFT storage currentItem = _idToNft[i];
-      nfts[i] = currentItem;
+      nfts[currentIndex] = currentItem;
       currentIndex++;
+    }
+    return nfts;
+  }
+  
+  function fetchNFTsCreatedByAddress(address minter) external view returns (NFT[] memory) {
+    uint count = _addressToUserCount[minter];
+    NFT[] memory nfts = new NFT[](count);
+    uint currentIndex;
+    for (uint i = 0; i < nftsRedeemed; i++) {
+      if(_idToNft[i].minter == minter){
+        NFT storage currentItem = _idToNft[i];
+        nfts[currentIndex] = currentItem;
+        currentIndex++;
+      }
     }
     return nfts;
   }
@@ -178,7 +197,7 @@ contract TempMint is ReentrancyGuard, Pausable, AccessControl {
         return bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
   }
     ///@notice
-  //*~~~> Withdraw function for any stuck ETH sent
+  //*~~~> Withdraw function for ETH sent
   function withdrawAmountFromContract(address _add) hasDevAdmin external {
       payable(_add).transfer(address(this).balance);
    }
