@@ -8,6 +8,8 @@ NFT Marketplace and social media platform
 A NFT marketplace that allows the trading of any NFT collection, purchasing of NFTs in ETH, bidding in ETH and offering ERC20's.
 Place a "blind" bid, trade or ERC20 offer on any specific unlisted item or collection-wide(any NFT holder of that collection can claim).
   </p>
+  Use the links below to access the current IPFS deployment:
+   IPNS: https://ipfs.io/ipns/k51qzi5uqu5dlbyz0as2ej6ma3y6uoa8iu877isx61p59l1y36blgzlh8ja5oq
   </br>
   <h4>
   Current Rinkeby Testnet Deployments:
